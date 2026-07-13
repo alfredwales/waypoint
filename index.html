@@ -530,19 +530,154 @@
       .stat-grid { grid-template-columns: 1fr 1fr; }
       .stat-val  { font-size: 16px; }
     }
+
+    /* ── Bottom nav (mobile only) ── */
+    .bottom-nav { display: none; }
+
+    /* ══════════════════════════════════
+       MOBILE — 640px and below
+    ══════════════════════════════════ */
+    @media (max-width: 640px) {
+      /* Hide top nav — replaced by bottom nav */
+      #top-nav { display: none; }
+
+      /* Header: compact single row */
+      header { padding: 0 14px; gap: 10px; height: 52px; }
+      .logo { font-size: 10px; }
+      #profile-name-display { display: none; }
+      .profile-badge { padding: 4px 7px 4px 5px; gap: 0; }
+      .header-right { gap: 6px; }
+      .header-right select { font-size: 10px; padding: 4px 6px; }
+      .header-right .btn { padding: 5px 10px; }
+
+      /* Bottom nav */
+      .bottom-nav {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: var(--surface);
+        border-top: 2px solid var(--border);
+        z-index: 50;
+        padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+      }
+      .bottom-nav .nav-btn {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+        font-family: inherit;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        padding: 8px 2px 5px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        transition: color 0.15s;
+        text-transform: uppercase;
+        white-space: nowrap;
+        line-height: 1;
+        border-radius: 0;
+      }
+      .bottom-nav .nav-btn.active {
+        color: var(--lime);
+        font-family: 'Unbounded', sans-serif;
+        font-size: 8px;
+      }
+      .bottom-nav .nav-btn::before {
+        content: '';
+        display: block;
+        width: 24px;
+        height: 2px;
+        border-radius: 2px;
+        background: transparent;
+        transition: background 0.2s;
+        flex-shrink: 0;
+      }
+      .bottom-nav .nav-btn.active::before { background: var(--lime); }
+
+      /* Card dock hidden on mobile */
+      .card-dock { display: none; }
+
+      /* Main: adjust for header + bottom nav */
+      main { padding: 16px 14px 88px; padding-right: 14px; }
+
+      /* Cards */
+      .card { padding: 16px 14px; }
+
+      /* Wealth hero */
+      .wealth-hero { padding: 18px 16px; min-height: auto; }
+      .wealth-number { font-size: 30px; letter-spacing: -1px; }
+
+      /* Stat grid: 2 columns */
+      .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .stat-val { font-size: 16px; }
+
+      /* Charts: single column (also at 600px) */
+      .charts-row { grid-template-columns: 1fr; }
+
+      /* Form rows: single column (also at 580px) */
+      .form-row { grid-template-columns: 1fr; }
+
+      /* Entry items */
+      .entry-date { min-width: 54px; }
+      .entry-item .tag { display: none; }
+      .entry-transfer-badge { display: none; }
+      .entry-actions .btn { padding: 4px 9px; font-size: 10px; }
+      .entry-actions { gap: 3px; }
+
+      /* Bill rows: allow wrap so actions don't squeeze */
+      .bill-row { flex-wrap: wrap; gap: 6px; }
+      .bill-cat { display: none; }
+
+      /* Month nav */
+      .month-label { min-width: 90px; font-size: 11px; }
+      .month-nav button { padding: 4px 8px; }
+
+      /* Section header controls can wrap */
+      .section-header > div:last-child { flex-wrap: wrap; }
+
+      /* Modals: near full width */
+      .modal { padding: 18px 16px; max-height: 88vh; }
+      .modal-wide { max-width: calc(100vw - 28px); }
+      .pdf-table { min-width: 540px; }
+
+      /* DS rows */
+      .ds-bottom { gap: 12px; }
+      .ds-meta-value { font-size: 12px; }
+
+      /* Insight cards grid: single column on small screens */
+      .insight-card { padding: 14px 16px; }
+
+      /* Detail bar */
+      .detail-bar { padding-bottom: 14px; }
+
+      /* Batch bar */
+      .batch-bar { padding: 8px 10px; }
+    }
+
+    /* Very small phones */
+    @media (max-width: 400px) {
+      .wealth-number { font-size: 24px; }
+      .stat-val { font-size: 14px; }
+      .bottom-nav .nav-btn { font-size: 8px; }
+      .card { padding: 14px 12px; }
+    }
   </style>
 </head>
 <body>
 
 <header>
   <div class="logo">FREELANCE<br>BUDGET</div>
-  <nav>
-    <button class="active" onclick="switchTab('dashboard',this)">Dashboard</button>
-    <button onclick="switchTab('income',this)">Income</button>
-    <button onclick="switchTab('expenses',this)">Expenses</button>
-    <button onclick="switchTab('budget',this)">Budget</button>
-    <button onclick="switchTab('debt',this)">Debt</button>
-    <button onclick="switchTab('savings',this)">Savings</button>
+  <nav id="top-nav">
+    <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="nav-btn" data-tab="income" onclick="switchTab('income',this)">Income</button>
+    <button class="nav-btn" data-tab="expenses" onclick="switchTab('expenses',this)">Expenses</button>
+    <button class="nav-btn" data-tab="budget" onclick="switchTab('budget',this)">Budget</button>
+    <button class="nav-btn" data-tab="debt" onclick="switchTab('debt',this)">Debt</button>
+    <button class="nav-btn" data-tab="savings" onclick="switchTab('savings',this)">Savings</button>
   </nav>
   <div class="header-right">
     <div class="profile-badge" onclick="openProfileModal()" id="profile-badge">
@@ -1344,14 +1479,12 @@ function generateInsight(account) {
 // ════════════════════════════════
 function switchTab(tab,el) {
   state.activeTab=tab; state.selectedAccount=null; _selectedTxIds.clear();
-  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
-  if(el) el.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   render();
 }
 function goToTab(tab) {
   state.activeTab=tab; state.selectedAccount=null; _selectedTxIds.clear();
-  const tabs=['dashboard','income','expenses','budget','debt','savings'];
-  document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',tabs[i]===tab));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   render();
 }
 function setCurrency(v){state.currency=v;saveState();render();}
@@ -2550,8 +2683,7 @@ function renderCardDock() {
 function goToAccountDetail(id){
   state.activeTab='dashboard';
   state.selectedAccount=id;
-  const tabs=['dashboard','income','expenses','budget','debt','savings'];
-  document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',tabs[i]==='dashboard'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='dashboard'));
   render();
 }
 
@@ -3194,5 +3326,14 @@ loadProfiles();
 loadState();
 render();
 </script>
+
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard',this)">Home</button>
+  <button class="nav-btn" data-tab="income" onclick="switchTab('income',this)">Income</button>
+  <button class="nav-btn" data-tab="expenses" onclick="switchTab('expenses',this)">Expenses</button>
+  <button class="nav-btn" data-tab="budget" onclick="switchTab('budget',this)">Budget</button>
+  <button class="nav-btn" data-tab="debt" onclick="switchTab('debt',this)">Debt</button>
+  <button class="nav-btn" data-tab="savings" onclick="switchTab('savings',this)">Savings</button>
+</nav>
 </body>
 </html>
