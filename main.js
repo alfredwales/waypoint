@@ -103,6 +103,8 @@ app.on('activate', () => {
 });
 
 // ── Auto-updater events ───────────────────────────────────────────────────────
+let _downloading = false;
+
 autoUpdater.on('update-available', (info) => {
   log.info('Update available:', info.version);
   const arch = process.arch === 'arm64' ? 'Apple Silicon (M-series)' : 'Intel';
@@ -114,11 +116,31 @@ autoUpdater.on('update-available', (info) => {
     buttons: ['Download & Install', 'Later'],
     defaultId: 0,
   }).then(({ response }) => {
-    if (response === 0) autoUpdater.downloadUpdate();
+    if (response === 0) {
+      _downloading = true;
+      autoUpdater.downloadUpdate();
+      const win = getWin();
+      if (win) win.setProgressBar(0.01);
+      dialog.showMessageBox(getWin(), {
+        type: 'info',
+        title: 'Downloading…',
+        message: 'Downloading update in the background.',
+        detail: 'This may take a minute. You\'ll be notified when it\'s ready to install.',
+        buttons: ['OK'],
+      });
+    }
   });
 });
 
+autoUpdater.on('download-progress', (progress) => {
+  const win = getWin();
+  if (win) win.setProgressBar(progress.percent / 100);
+});
+
 autoUpdater.on('update-downloaded', (event) => {
+  _downloading = false;
+  const win = getWin();
+  if (win) win.setProgressBar(-1);
   log.info('Update downloaded:', event.downloadedFile);
   const isArm = process.arch === 'arm64';
   dialog.showMessageBox(getWin(), {
@@ -152,4 +174,19 @@ autoUpdater.on('update-not-available', () => {
 
 autoUpdater.on('error', (err) => {
   log.error('Auto-updater error:', err);
+  if (_downloading) {
+    _downloading = false;
+    const win = getWin();
+    if (win) win.setProgressBar(-1);
+    dialog.showMessageBox(getWin(), {
+      type: 'info',
+      title: 'Download failed',
+      message: 'Could not download the update automatically.',
+      detail: 'Visit the releases page to download manually.',
+      buttons: ['Open download page', 'Cancel'],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) shell.openExternal('https://github.com/alfredwales/waypoint/releases/latest');
+    });
+  }
 });
