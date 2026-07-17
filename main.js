@@ -121,13 +121,6 @@ autoUpdater.on('update-available', (info) => {
       autoUpdater.downloadUpdate();
       const win = getWin();
       if (win) win.setProgressBar(0.01);
-      dialog.showMessageBox(getWin(), {
-        type: 'info',
-        title: 'Downloading…',
-        message: 'Downloading update in the background.',
-        detail: 'This may take a minute. You\'ll be notified when it\'s ready to install.',
-        buttons: ['OK'],
-      });
     }
   });
 });

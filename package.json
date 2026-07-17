@@ -1,7 +1,7 @@
 {
   "name": "waypoint",
   "productName": "Waypoint",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Your personal finance command centre",
   "main": "main.js",
   "author": {
@@ -40,16 +40,13 @@
     "mac": {
       "category": "public.app-category.finance",
       "icon": "build/icon.icns",
-      "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "target": [
         {
           "target": "dmg",
           "arch": ["arm64"]
         }
-      ],
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      ]
     },
     "dmg": {
       "title": "Waypoint",
