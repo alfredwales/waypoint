@@ -36,16 +36,22 @@ app.on('web-contents-created', (_e, contents) => {
 });
 
 // ── Window ────────────────────────────────────────────────────────────────────
+let mainWindow = null;
+
+function getWin() {
+  return mainWindow && !mainWindow.isDestroyed() ? mainWindow : BrowserWindow.getAllWindows()[0] || null;
+}
+
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
     minWidth: 900,
     minHeight: 600,
     webPreferences: {
-      nodeIntegration: false,           // Renderer has no Node.js access
-      contextIsolation: true,           // Preload isolated from renderer
-      sandbox: true,                    // Chromium OS-level sandbox
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
       webSecurity: true,
       allowRunningInsecureContent: false,
       preload: path.join(__dirname, 'preload.js'),
@@ -53,20 +59,24 @@ function createWindow() {
     icon: path.join(__dirname, 'build', 'icon.png'),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     backgroundColor: '#0D0D12',
-    show: false, // Show only after ready-to-show to avoid flash
+    show: false,
   });
 
-  win.loadFile('index.html');
+  mainWindow.loadFile('index.html');
 
-  // Show window only once content is ready (avoids white flash)
-  win.once('ready-to-show', () => win.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    // Check for updates only after window is visible, with a short delay
+    if (app.isPackaged) {
+      setTimeout(() => autoUpdater.checkForUpdates(), 3000);
+    }
+  });
 
-  return win;
+  return mainWindow;
 }
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
-  // Set a strict Content-Security-Policy for all responses
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -79,10 +89,6 @@ app.whenReady().then(() => {
   });
 
   createWindow();
-
-  if (app.isPackaged) {
-    autoUpdater.checkForUpdates();
-  }
 });
 
 ipcMain.handle('copy-to-clipboard', (_, text) => clipboard.writeText(text));
@@ -100,7 +106,7 @@ app.on('activate', () => {
 autoUpdater.on('update-available', (info) => {
   log.info('Update available:', info.version);
   const arch = process.arch === 'arm64' ? 'Apple Silicon (M-series)' : 'Intel';
-  dialog.showMessageBox({
+  dialog.showMessageBox(getWin(), {
     type: 'info',
     title: 'Update available',
     message: `Waypoint ${info.version} is available.`,
@@ -115,7 +121,7 @@ autoUpdater.on('update-available', (info) => {
 autoUpdater.on('update-downloaded', (event) => {
   log.info('Update downloaded:', event.downloadedFile);
   const isArm = process.arch === 'arm64';
-  dialog.showMessageBox({
+  dialog.showMessageBox(getWin(), {
     type: 'info',
     title: 'Ready to install',
     message: 'Update downloaded — one step to go.',

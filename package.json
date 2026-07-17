@@ -1,7 +1,7 @@
 {
   "name": "waypoint",
   "productName": "Waypoint",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Your personal finance command centre",
   "main": "main.js",
   "author": {
@@ -34,7 +34,8 @@
       "main.js",
       "preload.js",
       "index.html",
-      "build/icon.*"
+      "build/icon.*",
+      "build/dmg-background*"
     ],
     "mac": {
       "category": "public.app-category.finance",
@@ -55,18 +56,12 @@
     },
     "dmg": {
       "title": "Waypoint",
-      "background": null,
+      "background": "build/dmg-background.png",
+      "window": { "width": 540, "height": 380 },
+      "iconSize": 100,
       "contents": [
-        {
-          "x": 130,
-          "y": 220
-        },
-        {
-          "x": 410,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
+        { "x": 150, "y": 195 },
+        { "x": 390, "y": 195, "type": "link", "path": "/Applications" }
       ]
     },
     "win": {
