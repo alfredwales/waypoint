@@ -1,0 +1,97 @@
+{
+  "name": "waypoint",
+  "productName": "Waypoint",
+  "version": "1.0.1",
+  "description": "Your personal finance command centre",
+  "main": "main.js",
+  "author": {
+    "name": "Aberration Media",
+    "email": "alfie@aberrationmedia.co.uk"
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac --win",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:unsigned": "electron-builder --mac --config.mac.identity=null",
+    "publish:mac": "electron-builder --mac --config.mac.identity=null --publish always"
+  },
+  "dependencies": {
+    "electron-log": "^5.1.2",
+    "electron-updater": "^6.1.7"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "co.aberrationmedia.waypoint",
+    "productName": "Waypoint",
+    "copyright": "Copyright © 2025 Aberration Media",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "build/icon.*"
+    ],
+    "mac": {
+      "category": "public.app-category.finance",
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "Waypoint",
+      "background": null,
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "alfredwales",
+      "repo": "waypoint",
+      "releaseType": "release"
+    }
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
+  }
+}

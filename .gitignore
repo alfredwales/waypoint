@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# Source/design assets
+Adobe After Effects Auto-Save/
+Opening Animation.aep
+Opening Animation.mp4
+Icon.ai
+Icon.png
+Unbounded-Regular.ttf
+README.rtf
+
+# Sensitive
+repo_access.rtf
