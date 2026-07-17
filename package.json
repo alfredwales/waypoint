@@ -1,7 +1,7 @@
 {
   "name": "waypoint",
   "productName": "Waypoint",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Your personal finance command centre",
   "main": "main.js",
   "author": {
@@ -14,6 +14,8 @@
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:unsigned": "electron-builder --mac --config.mac.identity=null",
+    "publish:mac:arm64": "electron-builder --mac --arm64 --config.mac.identity=null --publish always",
+    "publish:mac:x64": "electron-builder --mac --x64 --config.mac.identity=null --publish always",
     "publish:mac": "electron-builder --mac --config.mac.identity=null --publish always"
   },
   "dependencies": {

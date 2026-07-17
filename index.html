@@ -1291,8 +1291,8 @@
       </div>
       <div style="border-top:2px solid var(--border);padding-top:14px">
         <div style="font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:0.5px;margin-bottom:6px">SHARE</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Download a blank copy of the app to share with friends. Opens with empty data on any other device.</p>
-        <button class="btn btn-outline" onclick="downloadBlankCopy()" style="width:100%">&#8600; Download Blank Copy</button>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Share Waypoint with friends — send them the download link.</p>
+        <button class="btn btn-outline" onclick="const b=this;navigator.clipboard.writeText('https://github.com/alfredwales/waypoint/releases/latest').then(()=>{b.textContent='✓ Link copied!';setTimeout(()=>b.textContent='⬀ Copy download link',2000)})" style="width:100%">&#8598; Copy download link</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -5371,10 +5371,21 @@ function _showTourCallout(targetSel, pos, html, topAlign) {
   const callout = document.getElementById('tour-callout');
   if (!callout) return;
   callout.innerHTML = html;
-  // Show as invisible block so we can measure dimensions before animating in
   callout.className = 'tc-measuring';
 
   const target = targetSel ? document.querySelector(targetSel) : null;
+
+  // Scroll target into view if it's genuinely off-screen, then re-run
+  if (target) {
+    const r = target.getBoundingClientRect();
+    const aboveView = r.bottom < 58;          // hidden above/behind header
+    const belowView = r.top > window.innerHeight; // hidden below viewport
+    if (aboveView || belowView) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => _showTourCallout(targetSel, pos, html, topAlign), 450);
+      return;
+    }
+  }
 
   requestAnimationFrame(() => {
     const vw = window.innerWidth;

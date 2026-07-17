@@ -7,8 +7,6 @@ const log = require('electron-log');
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
-// Don't auto-download — unsigned DMGs can't self-install on macOS reliably.
-// Instead, prompt the user to download from GitHub Releases.
 autoUpdater.autoDownload = false;
 autoUpdater.allowPrerelease = false;
 
@@ -98,16 +96,43 @@ app.on('activate', () => {
 // ── Auto-updater events ───────────────────────────────────────────────────────
 autoUpdater.on('update-available', (info) => {
   log.info('Update available:', info.version);
+  const arch = process.arch === 'arm64' ? 'Apple Silicon (M-series)' : 'Intel';
   dialog.showMessageBox({
     type: 'info',
     title: 'Update available',
     message: `Waypoint ${info.version} is available.`,
-    detail: 'A new version has been released. Download and install it to get the latest features and fixes.',
-    buttons: ['Download update', 'Later'],
+    detail: `Your Mac: ${arch}\n\nThe update will download in the background. When it's ready, a DMG installer will open — just drag Waypoint to Applications and relaunch. This takes about 30 seconds.`,
+    buttons: ['Download & Install', 'Later'],
+    defaultId: 0,
+  }).then(({ response }) => {
+    if (response === 0) autoUpdater.downloadUpdate();
+  });
+});
+
+autoUpdater.on('update-downloaded', (event) => {
+  log.info('Update downloaded:', event.downloadedFile);
+  const isArm = process.arch === 'arm64';
+  dialog.showMessageBox({
+    type: 'info',
+    title: 'Ready to install',
+    message: 'Update downloaded — one step to go.',
+    detail: [
+      'The installer is opening now. When the DMG window appears:',
+      '',
+      '  1. Drag Waypoint → Applications',
+      '  2. Click Replace when prompted',
+      '  3. Relaunch Waypoint from Applications',
+      '',
+      isArm
+        ? 'Your Mac uses Apple Silicon — if asked, pick the file ending in -arm64.dmg.'
+        : 'Your Mac uses an Intel chip — if asked, pick the file without -arm64 in the name.',
+    ].join('\n'),
+    buttons: ['Open installer', 'Later'],
     defaultId: 0,
   }).then(({ response }) => {
     if (response === 0) {
-      shell.openExternal('https://github.com/alfredwales/waypoint/releases/latest');
+      shell.openPath(event.downloadedFile);
+      setTimeout(() => app.quit(), 1000);
     }
   });
 });
