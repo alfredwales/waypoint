@@ -5338,7 +5338,7 @@ function _renderDashTour() {
     const target = step.target ? document.querySelector(step.target) : null;
     if (target) {
       target.classList.add('tour-highlight');
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.scrollIntoView({ behavior: 'instant', block: 'center' });
     }
   }
 
@@ -5367,7 +5367,7 @@ function _renderDashTour() {
     _tourOpenDock();
     setTimeout(() => _showTourCallout(step.target, step.pos, calloutHtml, step.topAlign), 450);
   } else {
-    setTimeout(() => _showTourCallout(step.target, step.pos, calloutHtml, step.topAlign), 350);
+    requestAnimationFrame(() => _showTourCallout(step.target, step.pos, calloutHtml, step.topAlign));
   }
 }
 
@@ -5385,8 +5385,8 @@ function _showTourCallout(targetSel, pos, html, topAlign) {
     const aboveView = r.bottom < 58;          // hidden above/behind header
     const belowView = r.top > window.innerHeight; // hidden below viewport
     if (aboveView || belowView) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => _showTourCallout(targetSel, pos, html, topAlign), 450);
+      target.scrollIntoView({ behavior: 'instant', block: 'center' });
+      requestAnimationFrame(() => _showTourCallout(targetSel, pos, html, topAlign));
       return;
     }
   }
@@ -5582,7 +5582,7 @@ function _renderGrowthTour() {
   const target = step.target ? document.querySelector(step.target) : null;
   if (target) {
     target.classList.add('tour-highlight');
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.scrollIntoView({ behavior: 'instant', block: 'center' });
   }
 
   const dots = steps.map((_,i) =>
@@ -5605,7 +5605,7 @@ function _renderGrowthTour() {
     </div>
   `;
 
-  setTimeout(() => _showTourCallout(step.target, step.pos, calloutHtml), 350);
+  requestAnimationFrame(() => _showTourCallout(step.target, step.pos, calloutHtml));
 }
 
 function _growthTourNext() {
