@@ -1930,18 +1930,27 @@ function generateInsight(account) {
 // ════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════
+function _scrollTop() {
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  window.scrollTo(0, 0);
+}
 function switchTab(tab,el) {
   state.activeTab=tab; state.selectedAccount=null; _selectedTxIds.clear(); _incomeSearch=''; _expenseSearch='';
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  _scrollTop();
   render();
-  requestAnimationFrame(() => { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; });
+  _scrollTop();
+  requestAnimationFrame(_scrollTop);
   _checkSpotlight(tab);
 }
 function goToTab(tab) {
   state.activeTab=tab; state.selectedAccount=null; _selectedTxIds.clear(); _incomeSearch=''; _expenseSearch='';
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  _scrollTop();
   render();
-  requestAnimationFrame(() => { document.documentElement.scrollTop = 0; document.body.scrollTop = 0; });
+  _scrollTop();
+  requestAnimationFrame(_scrollTop);
   _checkSpotlight(tab);
 }
 function setCurrency(v){state.currency=v;saveState();render();}
@@ -5329,7 +5338,7 @@ function _renderDashTour() {
     const target = step.target ? document.querySelector(step.target) : null;
     if (target) {
       target.classList.add('tour-highlight');
-      if (step.scroll) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
 
@@ -5358,12 +5367,7 @@ function _renderDashTour() {
     _tourOpenDock();
     setTimeout(() => _showTourCallout(step.target, step.pos, calloutHtml, step.topAlign), 450);
   } else {
-    const delay = step.scroll ? 350 : 0;
-    if (delay) {
-      setTimeout(() => _showTourCallout(step.target, step.pos, calloutHtml, step.topAlign), delay);
-    } else {
-      _showTourCallout(step.target, step.pos, calloutHtml, step.topAlign);
-    }
+    setTimeout(() => _showTourCallout(step.target, step.pos, calloutHtml, step.topAlign), 350);
   }
 }
 
@@ -5578,7 +5582,7 @@ function _renderGrowthTour() {
   const target = step.target ? document.querySelector(step.target) : null;
   if (target) {
     target.classList.add('tour-highlight');
-    if (step.scroll) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   const dots = steps.map((_,i) =>
@@ -5601,12 +5605,7 @@ function _renderGrowthTour() {
     </div>
   `;
 
-  const delay = step.scroll ? 350 : 0;
-  if (delay) {
-    setTimeout(() => _showTourCallout(step.target, step.pos, calloutHtml), delay);
-  } else {
-    _showTourCallout(step.target, step.pos, calloutHtml);
-  }
+  setTimeout(() => _showTourCallout(step.target, step.pos, calloutHtml), 350);
 }
 
 function _growthTourNext() {
