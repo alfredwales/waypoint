@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, session, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, session, dialog, ipcMain, clipboard } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const log = require('electron-log');
@@ -84,6 +84,9 @@ app.whenReady().then(() => {
     autoUpdater.checkForUpdates();
   }
 });
+
+ipcMain.handle('copy-to-clipboard', (_, text) => clipboard.writeText(text));
+ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
