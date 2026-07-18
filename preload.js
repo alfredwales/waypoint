@@ -3,8 +3,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('waypointApp', {
-  version: process.env.npm_package_version || '',
   platform: process.platform,
+  getVersion: () => ipcRenderer.invoke('get-app-version'),
   copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });

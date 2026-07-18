@@ -60,7 +60,7 @@
       z-index: 50;
       -webkit-app-region: drag;
     }
-    header *, header button, header select, header input { -webkit-app-region: no-drag; }
+    header button, header select, header input, header .profile-badge { -webkit-app-region: no-drag; }
     .electron-mac header { padding-left: 80px; }
 
     .logo {
@@ -160,6 +160,16 @@
       background: linear-gradient(to left, rgba(13,13,18,0.98) 20%, rgba(13,13,18,0.92) 80%, transparent 100%);
     }
     .card-dock.dock-open { transform: translateX(0); }
+    .version-footnote {
+      position: fixed;
+      right: 76px; /* clear of the card dock's 64px peek */
+      bottom: 8px;
+      font-size: 10px;
+      color: var(--muted);
+      opacity: 0.5;
+      pointer-events: none;
+      z-index: 3;
+    }
     .card-dock-inner {
       position: relative;
       flex: 1;
@@ -980,6 +990,7 @@
 
 <main id="main"></main>
 <div class="card-dock" id="card-dock-panel"></div>
+<div id="app-version-footnote" class="version-footnote"></div>
 
 <!-- ═══ MODAL: Income ═══ -->
 <div class="modal-overlay" id="income-modal">
@@ -1433,7 +1444,8 @@ function switchProfile(id) {
   const f=profiles.find(x=>x.id===id); if(!f) return;
   activeProfile=f; saveProfiles();
   state={income:[],expenses:[],budgets:[],recurringBills:[],billSuggestions:[],debts:[],savings:[],accounts:[],currency:'£',activeTab:'dashboard',selectedAccount:null,viewMonth:new Date().getMonth(),viewYear:new Date().getFullYear(),onboardingComplete:false};
-  loadState(); closeModal('profile-modal'); render();
+  loadState(); closeModal('profile-modal');
+  _scrollTop(); render(); _scrollTop(); requestAnimationFrame(_scrollTop);
   if (!state.onboardingComplete && state.accounts.length === 0) showOnboarding();
 }
 function addProfileFromInput() {
@@ -1964,8 +1976,8 @@ function goToTab(tab) {
 function setCurrency(v){state.currency=v;saveState();render();}
 function prevMonth(){if(--state.viewMonth<0){state.viewMonth=11;state.viewYear--;}render();}
 function nextMonth(){const n=new Date();if(state.viewMonth===n.getMonth()&&state.viewYear===n.getFullYear())return;if(++state.viewMonth>11){state.viewMonth=0;state.viewYear++;}render();}
-function selectAccount(id){state.selectedAccount=id;_selectedPocket=null;render();}
-function clearAccount(){state.selectedAccount=null;_selectedPocket=null;render();}
+function selectAccount(id){state.selectedAccount=id;_selectedPocket=null;_scrollTop();render();_scrollTop();requestAnimationFrame(_scrollTop);}
+function clearAccount(){state.selectedAccount=null;_selectedPocket=null;_scrollTop();render();_scrollTop();requestAnimationFrame(_scrollTop);}
 
 // ════════════════════════════════
 // MODALS
@@ -1979,7 +1991,8 @@ function resetProfileData(){
     currency:'£',activeTab:'dashboard',selectedAccount:null,
     viewMonth:new Date().getMonth(),viewYear:new Date().getFullYear(),accountOrder:[],
     onboardingComplete:false,seenSpotlights:{}};
-  closeModal('profile-modal');render();
+  closeModal('profile-modal');
+  _scrollTop(); render(); _scrollTop(); requestAnimationFrame(_scrollTop);
   showOnboarding();
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -3677,7 +3690,10 @@ function goToAccountDetail(id){
   state.selectedAccount=id;
   _selectedPocket=null;
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='dashboard'));
+  _scrollTop();
   render();
+  _scrollTop();
+  requestAnimationFrame(_scrollTop);
 }
 let _pocketSwitch = false;
 function selectPocket(id){_selectedPocket=id;_pocketSwitch=true;render();}
@@ -5939,6 +5955,14 @@ if (!state.onboardingComplete && state.accounts.length === 0) showOnboarding();
 // Electron: add macOS class for traffic-light padding + drag region
 if (window.waypointApp && window.waypointApp.platform === 'darwin') {
   document.documentElement.classList.add('electron-mac');
+}
+
+// Electron: show app version in the corner (no-op outside Electron, e.g. a shared blank copy)
+if (window.waypointApp?.getVersion) {
+  window.waypointApp.getVersion().then(v => {
+    const el = document.getElementById('app-version-footnote');
+    if (el && v) el.textContent = `v${v}`;
+  });
 }
 
 // Scrollbar: only visible while scrolling

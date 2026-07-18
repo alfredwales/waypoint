@@ -93,6 +93,7 @@ app.whenReady().then(() => {
 
 ipcMain.handle('copy-to-clipboard', (_, text) => clipboard.writeText(text));
 ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
+ipcMain.handle('get-app-version', () => app.getVersion());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
