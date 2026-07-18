@@ -135,28 +135,16 @@ autoUpdater.on('update-downloaded', (event) => {
   const win = getWin();
   if (win) win.setProgressBar(-1);
   log.info('Update downloaded:', event.downloadedFile);
-  const isArm = process.arch === 'arm64';
   dialog.showMessageBox(getWin(), {
     type: 'info',
     title: 'Ready to install',
-    message: 'Update downloaded — one step to go.',
-    detail: [
-      'The installer is opening now. When the DMG window appears:',
-      '',
-      '  1. Drag Waypoint → Applications',
-      '  2. Click Replace when prompted',
-      '  3. Relaunch Waypoint from Applications',
-      '',
-      isArm
-        ? 'Your Mac uses Apple Silicon — if asked, pick the file ending in -arm64.dmg.'
-        : 'Your Mac uses an Intel chip — if asked, pick the file without -arm64 in the name.',
-    ].join('\n'),
-    buttons: ['Open installer', 'Later'],
+    message: 'Update downloaded — restart to finish installing.',
+    detail: 'Waypoint will close and reopen automatically with the update applied. This takes a few seconds.',
+    buttons: ['Restart now', 'Later'],
     defaultId: 0,
   }).then(({ response }) => {
     if (response === 0) {
-      shell.openPath(event.downloadedFile);
-      setTimeout(() => app.quit(), 1000);
+      autoUpdater.quitAndInstall();
     }
   });
 });
