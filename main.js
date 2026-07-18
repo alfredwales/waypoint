@@ -1,12 +1,21 @@
-const { app, BrowserWindow, shell, session, dialog, ipcMain, clipboard } = require('electron');
+const { app, BrowserWindow, shell, session, dialog, ipcMain, clipboard, net } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const log = require('electron-log');
+
+const REPO_OWNER = 'alfredwales';
+const REPO_NAME = 'waypoint';
+const APP_ICON = path.join(__dirname, 'build', 'icon.png');
 
 // ── Logging ──────────────────────────────────────────────────────────────────
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
+// We only use electron-updater to check for and describe available updates.
+// Actually downloading + installing macOS updates is handled ourselves below —
+// see the note by downloadUpdateDmg() for why.
 autoUpdater.autoDownload = false;
 autoUpdater.allowPrerelease = false;
 
@@ -103,50 +112,27 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-// ── Auto-updater events ───────────────────────────────────────────────────────
-let _downloading = false;
-
+// ── Auto-updater ───────────────────────────────────────────────────────────────
+// macOS auto-update normally works by handing a downloaded zip to Apple's native
+// Squirrel/ShipIt updater, which swaps the app in place. ShipIt requires the new
+// build's code signature to satisfy the running app's code requirement — that
+// only holds for apps signed with a real (paid) Apple Developer ID. We ship ad
+// hoc signed, so every install attempt fails validation. Rather than silently
+// failing, we check for updates via electron-updater as before, but download and
+// present the DMG ourselves, then let the user do the normal drag-to-Applications
+// install from its (custom-branded) installer window.
 autoUpdater.on('update-available', (info) => {
   log.info('Update available:', info.version);
-  const arch = process.arch === 'arm64' ? 'Apple Silicon (M-series)' : 'Intel';
   dialog.showMessageBox(getWin(), {
     type: 'info',
+    icon: APP_ICON,
     title: 'Update available',
     message: `Waypoint ${info.version} is available.`,
-    detail: `Your Mac: ${arch}\n\nThe update will download in the background. When it's ready, a DMG installer will open — just drag Waypoint to Applications and relaunch. This takes about 30 seconds.`,
+    detail: 'The update will download in the background, then open an installer window with instructions.',
     buttons: ['Download & Install', 'Later'],
     defaultId: 0,
   }).then(({ response }) => {
-    if (response === 0) {
-      _downloading = true;
-      autoUpdater.downloadUpdate();
-      const win = getWin();
-      if (win) win.setProgressBar(0.01);
-    }
-  });
-});
-
-autoUpdater.on('download-progress', (progress) => {
-  const win = getWin();
-  if (win) win.setProgressBar(progress.percent / 100);
-});
-
-autoUpdater.on('update-downloaded', (event) => {
-  _downloading = false;
-  const win = getWin();
-  if (win) win.setProgressBar(-1);
-  log.info('Update downloaded:', event.downloadedFile);
-  dialog.showMessageBox(getWin(), {
-    type: 'info',
-    title: 'Ready to install',
-    message: 'Update downloaded — restart to finish installing.',
-    detail: 'Waypoint will close and reopen automatically with the update applied. This takes a few seconds.',
-    buttons: ['Restart now', 'Later'],
-    defaultId: 0,
-  }).then(({ response }) => {
-    if (response === 0) {
-      autoUpdater.quitAndInstall();
-    }
+    if (response === 0) downloadUpdateDmg(info);
   });
 });
 
@@ -155,20 +141,115 @@ autoUpdater.on('update-not-available', () => {
 });
 
 autoUpdater.on('error', (err) => {
-  log.error('Auto-updater error:', err);
-  if (_downloading) {
-    _downloading = false;
-    const win = getWin();
-    if (win) win.setProgressBar(-1);
-    dialog.showMessageBox(getWin(), {
-      type: 'info',
-      title: 'Download failed',
-      message: 'Could not download the update automatically.',
-      detail: 'Visit the releases page to download manually.',
-      buttons: ['Open download page', 'Cancel'],
-      defaultId: 0,
-    }).then(({ response }) => {
-      if (response === 0) shell.openExternal('https://github.com/alfredwales/waypoint/releases/latest');
-    });
-  }
+  log.error('Auto-updater error (checking for update):', err);
 });
+
+function downloadUpdateDmg(info) {
+  const dmgFile = (info.files || []).find(f => f.url.endsWith('.dmg'));
+  if (!dmgFile) {
+    log.error('No .dmg file listed for this release:', info.version);
+    showManualDownloadDialog('Could not find a downloadable installer for this update.');
+    return;
+  }
+
+  const url = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/v${info.version}/${dmgFile.url}`;
+  const destPath = path.join(app.getPath('downloads'), dmgFile.url);
+  const win = getWin();
+  if (win) win.webContents.send('update-status', { type: 'start' });
+
+  const request = net.request(url);
+  request.on('response', (response) => {
+    if (response.statusCode >= 400) {
+      log.error(`Update download failed: HTTP ${response.statusCode}`);
+      if (win) win.webContents.send('update-status', { type: 'error' });
+      showManualDownloadDialog('Could not download the update automatically.');
+      return;
+    }
+    const total = Number(response.headers['content-length']) || dmgFile.size || 0;
+    let received = 0;
+    const fileStream = fs.createWriteStream(destPath);
+    response.on('data', (chunk) => {
+      received += chunk.length;
+      fileStream.write(chunk);
+      if (win) {
+        if (total) win.setProgressBar(received / total);
+        win.webContents.send('update-status', { type: 'progress', percent: total ? (received / total) * 100 : 0 });
+      }
+    });
+    response.on('end', () => {
+      fileStream.end(() => {
+        if (win) win.setProgressBar(-1);
+        verifyAndOpenInstaller(destPath, dmgFile, win);
+      });
+    });
+    response.on('error', (err) => {
+      fileStream.close();
+      log.error('Update download stream error:', err);
+      if (win) win.webContents.send('update-status', { type: 'error' });
+      showManualDownloadDialog('Could not download the update automatically.');
+    });
+  });
+  request.on('error', (err) => {
+    log.error('Update download request error:', err);
+    if (win) win.webContents.send('update-status', { type: 'error' });
+    showManualDownloadDialog('Could not download the update automatically.');
+  });
+  request.end();
+}
+
+function verifyAndOpenInstaller(destPath, dmgFile, win) {
+  if (!dmgFile.sha512) { finishInstall(destPath, win); return; }
+  const hash = crypto.createHash('sha512');
+  const stream = fs.createReadStream(destPath);
+  stream.on('data', (chunk) => hash.update(chunk));
+  stream.on('end', () => {
+    if (hash.digest('base64') !== dmgFile.sha512) {
+      log.error('Downloaded update failed checksum verification');
+      fs.unlink(destPath, () => {});
+      if (win) win.webContents.send('update-status', { type: 'error' });
+      showManualDownloadDialog('The downloaded update looked corrupted, so it was discarded.');
+      return;
+    }
+    finishInstall(destPath, win);
+  });
+  stream.on('error', (err) => {
+    log.warn('Checksum verification read error, installing anyway:', err);
+    finishInstall(destPath, win);
+  });
+}
+
+function finishInstall(destPath, win) {
+  if (win) win.webContents.send('update-status', { type: 'complete' });
+  log.info('Update downloaded and verified:', destPath);
+  dialog.showMessageBox(getWin(), {
+    type: 'info',
+    icon: APP_ICON,
+    title: 'Ready to install',
+    message: 'Update downloaded — installer window opening now.',
+    detail: [
+      'When the Waypoint window appears:',
+      '',
+      '  1. Drag Waypoint into Applications',
+      '  2. Click Replace when prompted',
+      '  3. Quit this app, then reopen Waypoint from Applications',
+    ].join('\n'),
+    buttons: ['Open installer', 'Later'],
+    defaultId: 0,
+  }).then(({ response }) => {
+    if (response === 0) shell.openPath(destPath);
+  });
+}
+
+function showManualDownloadDialog(message) {
+  dialog.showMessageBox(getWin(), {
+    type: 'info',
+    icon: APP_ICON,
+    title: 'Download failed',
+    message,
+    detail: 'Visit the releases page to download manually.',
+    buttons: ['Open download page', 'Cancel'],
+    defaultId: 0,
+  }).then(({ response }) => {
+    if (response === 0) shell.openExternal(`https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`);
+  });
+}

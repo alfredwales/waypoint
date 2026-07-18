@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('waypointApp', {
   getVersion: () => ipcRenderer.invoke('get-app-version'),
   copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  onUpdateStatus: (callback) => ipcRenderer.on('update-status', (_event, status) => callback(status)),
 });
