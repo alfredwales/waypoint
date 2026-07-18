@@ -246,10 +246,10 @@ function showManualDownloadDialog(message) {
     icon: APP_ICON,
     title: 'Download failed',
     message,
-    detail: 'Visit the releases page to download manually.',
-    buttons: ['Open download page', 'Cancel'],
+    detail: 'You can download it directly in your browser instead.',
+    buttons: ['Download installer', 'Cancel'],
     defaultId: 0,
   }).then(({ response }) => {
-    if (response === 0) shell.openExternal(`https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`);
+    if (response === 0) shell.openExternal(`https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest/download/Waypoint-arm64.dmg`);
   });
 }
