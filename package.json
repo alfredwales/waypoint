@@ -1,7 +1,7 @@
 {
   "name": "waypoint",
   "productName": "Waypoint",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Your personal finance command centre",
   "main": "main.js",
   "author": {

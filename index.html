@@ -195,6 +195,45 @@
     .update-progress-toast .upt-label { margin-bottom: 7px; }
     .update-progress-toast .upt-track { width: 100%; height: 6px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
     .update-progress-toast .upt-fill { height: 100%; width: 0%; background: var(--lime); border-radius: 4px; transition: width 0.25s ease; }
+
+    /* ── Bug report widget ── */
+    .bug-report-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 80px; /* clear of the card dock's 64px peek, same as .version-footnote */
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 45;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .bug-report-btn:hover { border-color: var(--lime); transform: scale(1.06); }
+    .bug-nudge {
+      position: fixed;
+      bottom: 74px;
+      right: 76px;
+      max-width: 200px;
+      background: var(--surface2);
+      border: 2px solid var(--lime);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      z-index: 45;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+      cursor: pointer;
+      animation: chartIn 0.25s ease both;
+    }
+    #bug-report-text { min-height: 100px; resize: vertical; }
+    .bug-report-meta { font-size: 10px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+    .bug-report-thanks { text-align: center; padding: 10px 0; }
+    .bug-report-thanks .brt-emoji { font-size: 40px; margin-bottom: 12px; }
     .card-dock-inner {
       position: relative;
       flex: 1;
@@ -517,8 +556,12 @@
     .toggle input:checked + .toggle-slider::before { transform: translateX(16px); background: #0D0D12; }
 
     /* ── Debt / Savings rows ── */
-    .ds-row { padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .ds-row { padding: 16px 0; border-bottom: 1px solid var(--border); transition: background 0.15s; }
     .ds-row:last-child { border-bottom: none; }
+    /* Only rows with an onclick (debt/account rows) navigate to a detail page —
+       savings pot rows share this class but aren't clickable, so scope the hover
+       affordance to the attribute rather than the class. */
+    .ds-row[onclick]:hover { background: rgba(255,255,255,0.03); margin: 0 -20px; padding: 16px 20px; border-radius: 10px; }
     .ds-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
     .ds-name { font-family: 'Unbounded', sans-serif; font-size: 13px; }
     .ds-actions { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
@@ -706,6 +749,10 @@
       /* Card dock hidden on mobile */
       .card-dock { display: none; }
 
+      /* Bug report widget: no dock to clear, but must sit above the bottom nav bar */
+      .bug-report-btn { right: 16px; bottom: 74px; }
+      .bug-nudge { right: 12px; bottom: 124px; }
+
       /* Main: adjust for header + bottom nav */
       main { padding: 16px 14px 88px; padding-right: 14px; }
 
@@ -754,7 +801,7 @@
       .ds-meta-value { font-size: 12px; }
 
       /* Insight cards grid: single column on small screens */
-      .insight-card { padding: 14px 16px; }
+      .insight-card { padding: 16px 14px; }
 
       /* Detail bar */
       .detail-bar { padding-bottom: 14px; }
@@ -1017,6 +1064,14 @@
 <main id="main"></main>
 <div class="card-dock" id="card-dock-panel"></div>
 <div id="app-version-footnote" class="version-footnote"></div>
+
+<!-- ═══ BUG REPORT WIDGET ═══ -->
+<div class="bug-report-btn" id="bug-report-btn" title="Report a bug" onclick="openBugReport()">🐛</div>
+<div class="bug-nudge" id="bug-nudge" style="display:none" onclick="openBugReport();hideBugNudge()">Hit a bug? Report it! →</div>
+
+<div class="modal-overlay" id="bug-report-modal">
+  <div class="modal" id="bug-report-modal-inner"></div>
+</div>
 
 <!-- ═══ MODAL: Income ═══ -->
 <div class="modal-overlay" id="income-modal">
@@ -1493,6 +1548,11 @@
   <div class="spotlight-modal" id="spotlight-modal"></div>
 </div>
 
+<!-- ═══ WHAT'S NEW ═══ -->
+<div id="whats-new-overlay" class="spotlight-overlay" onclick="if(event.target===this) dismissWhatsNew()">
+  <div class="spotlight-modal" id="whats-new-modal"></div>
+</div>
+
 <!-- ═══ ONBOARDING ═══ -->
 <div id="onboarding-overlay">
   <div class="ob-card" id="ob-content"></div>
@@ -1522,6 +1582,10 @@ const INTRO_VIDEO_SRC = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yY
 const CARD_COLORS = ['#CAF53A','#F472B6','#2DD4BF','#60A5FA','#A78BFA','#FB923C'];
 const PROFILES_KEY   = 'fb-profiles';
 const ACTIVE_KEY     = 'fb-active-profile';
+// Bumped by hand alongside package.json's version each release. Kept as a plain
+// constant (not read from Electron's getVersion() IPC) so "what's new" gating
+// works identically in the standalone static-file distribution, which has no IPC.
+const APP_VERSION = '1.2.1';
 
 let profiles = [{ id:'default', name:'My Budget', color:'#CAF53A' }];
 let activeProfile = profiles[0];
@@ -1589,6 +1653,7 @@ let state = {
   efSuggestionLastMonths: 0,
   onboardingComplete: false,
   seenSpotlights: {},
+  lastSeenVersion: null,
   taxSettings: _defaultTaxSettings(),
 };
 
@@ -1605,6 +1670,7 @@ function loadState() {
     if (s.efSuggestionLastMonths) state.efSuggestionLastMonths = s.efSuggestionLastMonths;
     if (s.seenSpotlights) state.seenSpotlights = s.seenSpotlights;
     if (s.onboardingComplete) state.onboardingComplete = s.onboardingComplete;
+    if (s.lastSeenVersion) state.lastSeenVersion = s.lastSeenVersion;
     state.taxSettings = { ..._defaultTaxSettings(), ...(s.taxSettings||{}) };
     // Migrate old single-promo interest-free fields (hasInterestFree/ifStart/ifMonths/ifAmount)
     // to the promotions[] array + recurringInterestFree, preserving "blank amount = full balance" semantics.
@@ -1622,8 +1688,8 @@ function loadState() {
 let _saveErrorShown = false;
 function saveState() {
   try {
-    const { income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,taxSettings } = state;
-    localStorage.setItem(getStorageKey(), JSON.stringify({income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,taxSettings}));
+    const { income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,lastSeenVersion,taxSettings } = state;
+    localStorage.setItem(getStorageKey(), JSON.stringify({income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,lastSeenVersion,taxSettings}));
   } catch(e) {
     console.error(e);
     if (!_saveErrorShown) {
@@ -2108,7 +2174,7 @@ function monthsToTarget(pot) {
   const rate=Number(pot.interestRate||0)/100/12,c=Number(pot.monthlyContribution||0);
   if(c<=0&&rate===0) return Infinity;
   let bal=Number(pot.balance),mo=0;
-  while(bal<tgt&&mo<1200){bal=bal*(1+rate)+c;mo++;} return mo;
+  while(bal<tgt&&mo<600){bal=bal*(1+rate)+c;mo++;} return mo;
 }
 
 function generateInsight(account) {
@@ -2812,6 +2878,13 @@ function openEditBudget(id){
   document.getElementById('budget-category').disabled=true;
   document.getElementById('budget-limit').value=b.limit;
   openModal('budget-modal');setTimeout(()=>document.getElementById('budget-limit').focus(),50);
+}
+// Same as openEditBudget(), but pre-fills the limit field with a suggested value
+// (from a Smart Budget tip) instead of the budget's current limit — still requires
+// the user to confirm via Save, same as every other suggestion CTA in the app.
+function openEditBudgetWithLimit(id,suggestedLimit){
+  openEditBudget(id);
+  document.getElementById('budget-limit').value=suggestedLimit;
 }
 function submitBudget(e){
   e.preventDefault();
@@ -4100,19 +4173,31 @@ function generateSmartBudgetAdvice() {
 
   // Unbudgeted spending categories
   Object.entries(catAvg).filter(([cat])=>!budgeted.has(cat)).sort((a,b)=>b[1]-a[1]).slice(0,3).forEach(([cat,avg])=>{
-    if(avg>=15) tips.push({type:'info',title:`Set a budget for "${esc(cat)}"`,body:`Avg. ${fmt(avg)}/mo with no limit set — adding a budget would help track this spend.`});
+    if(avg>=15){
+      const suggested=Math.ceil(avg*1.1/5)*5;
+      tips.push({type:'info',title:`Set a budget for "${esc(cat)}"`,body:`Avg. ${fmt(avg)}/mo with no limit set — adding a budget would help track this spend.`,
+        cta:{label:`Set ${fmt(suggested)} budget`,onclick:`openAddBudgetForCat(${JSON.stringify(cat)},${suggested})`}});
+    }
   });
 
   // Consistently over-budget
   state.budgets.forEach(b=>{
     const avg=monthsWindow.map(d=>getCategoryMonthSpend(b.category,d.getMonth(),d.getFullYear())).reduce((s,v)=>s+v,0)/activeExpenseMonths;
-    if(avg>b.limit*1.1) tips.push({type:'warn',title:`"${esc(b.category)}" consistently over budget`,body:`${activeExpenseMonths>1?activeExpenseMonths+'-month avg':'Avg.'} ${fmt(avg)}/mo vs ${fmt(b.limit)} limit. Consider raising to ${fmt(Math.ceil(avg/10)*10)} or cutting back.`});
+    if(avg>b.limit*1.1){
+      const raised=Math.ceil(avg/10)*10;
+      tips.push({type:'warn',title:`"${esc(b.category)}" consistently over budget`,body:`${activeExpenseMonths>1?activeExpenseMonths+'-month avg':'Avg.'} ${fmt(avg)}/mo vs ${fmt(b.limit)} limit. Consider raising to ${fmt(raised)} or cutting back.`,
+        cta:{label:`Raise to ${fmt(raised)}`,onclick:`openEditBudgetWithLimit(${JSON.stringify(b.id)},${raised})`}});
+    }
   });
 
   // Over-budgeted (consistently well under limit)
   state.budgets.forEach(b=>{
     const avg=monthsWindow.map(d=>getCategoryMonthSpend(b.category,d.getMonth(),d.getFullYear())).reduce((s,v)=>s+v,0)/activeExpenseMonths;
-    if(b.limit>0&&avg>0&&avg<b.limit*0.5) tips.push({type:'pos',title:`"${esc(b.category)}" under-utilised`,body:`Spending only ${fmt(avg)}/mo against a ${fmt(b.limit)} budget. You could lower the limit and free up ${fmt(b.limit-avg)}.`});
+    if(b.limit>0&&avg>0&&avg<b.limit*0.5){
+      const lowered=Math.ceil(avg*1.2/5)*5;
+      tips.push({type:'pos',title:`"${esc(b.category)}" under-utilised`,body:`Spending only ${fmt(avg)}/mo against a ${fmt(b.limit)} budget. You could lower the limit and free up ${fmt(b.limit-avg)}.`,
+        cta:{label:`Lower to ${fmt(lowered)}`,onclick:`openEditBudgetWithLimit(${JSON.stringify(b.id)},${lowered})`}});
+    }
   });
 
   // Savings rate
@@ -4561,7 +4646,7 @@ function renderAccountDetail(account) {
       ${acctRecurring>0?`<div><div class="ds-meta-label">Recurring bills</div><div class="ds-meta-value neg">${fmt(acctRecurring)}/mo</div></div>`:''}
     </div>
 
-    <div class="insight-card">
+    <div class="insight-card" style="margin-bottom:16px">
       <div class="eyebrow">&#9889; Insight</div>
       <p>${esc(insight)}</p>
     </div>
@@ -5152,7 +5237,7 @@ function renderBudget(){
     </div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Personalised suggestions based on your spending patterns.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-      ${advice.map(a=>`<div class="insight-card ${a.type}"><div class="eyebrow">${a.title}</div><p>${a.body}</p></div>`).join('')}
+      ${advice.map(a=>`<div class="insight-card ${a.type}"><div class="eyebrow">${a.title}</div><p>${a.body}</p>${a.cta?`<button class="btn btn-lime btn-sm" style="margin-top:10px" onclick="${esc(a.cta.onclick)}">${esc(a.cta.label)}</button>`:''}</div>`).join('')}
     </div>
   </div>`:``}`;
 }
@@ -5385,7 +5470,7 @@ function savPotRow(p) {
       ${p.monthlyContribution>0?`<div><div class="ds-meta-label">Monthly</div><div class="ds-meta-value">${fmt(p.monthlyContribution)}</div></div>`:''}
       <div><div class="ds-meta-label">In 12 months</div><div class="ds-meta-value pos">${fmt(proj)}</div></div>
       ${growth>0?`<div><div class="ds-meta-label">Growth</div><div class="ds-meta-value pos">+${fmt(growth)}</div></div>`:''}
-      ${mTgt!==null?`<div><div class="ds-meta-label">Reach target</div><div class="ds-meta-value" style="font-size:11px;font-weight:600">${mTgt===0?'Already reached':mTgt>=1200?'Never at current rate':mTgt+' months ('+monthsFromNow(mTgt)+')'}</div></div>`:''}
+      ${mTgt!==null?`<div><div class="ds-meta-label">Reach target</div><div class="ds-meta-value" style="font-size:11px;font-weight:600">${mTgt===0?'Already reached':mTgt>=600?'Never at current rate':mTgt+' months ('+monthsFromNow(mTgt)+')'}</div></div>`:''}
     </div>
   </div>`;
 }
@@ -5484,8 +5569,9 @@ function calcHealthScore(avgIn,monthlyExpense,totalDebt,totalSavings,surplus) {
   const savScore=Math.round(Math.min(savRate/0.2,1)*25);
   breakdown.push({label:'Savings Rate',score:savScore,max:25,
     desc:`${(savRate*100).toFixed(0)}% of income going to surplus`});
-  // Budget discipline (25 pts)
-  let budgetScore=0,budgetDesc='No budgets set yet';
+  // Budget discipline (25 pts) — no budgets yet is unmeasured, not a failure, so
+  // it gets a neutral half-credit rather than a 0 that permanently caps the score
+  let budgetScore=13,budgetDesc='No budgets set yet — add some to track this properly';
   if(state.budgets.length>0){
     const ok=state.budgets.filter(b=>getCategoryMonthSpend(b.category,m,y)<=b.limit).length;
     budgetScore=Math.round((ok/state.budgets.length)*25);
@@ -5574,6 +5660,25 @@ function buildGrowthMilestones(surplus,avalanche,totalSavings,efTarget,monthlyEx
   return milestones.sort((a,b)=>a.month-b.month);
 }
 
+// Shared category classifier — used by buildPriorityActions() and
+// buildBudgetRecommendations() so "which categories are actually discretionary"
+// is defined in exactly one place.
+const NON_ESSENTIAL_KW=['eating out','restaurant','takeaway','takeaways','coffee','cafe','shopping','clothes','clothing','entertainment','cinema','hobbies','streaming','netflix','spotify','disney','subscription','alcohol','pub','bar','beauty','hair','gambling','dining','fast food','delivery','just eat','deliveroo','uber eats','fashion','amazon','ebay','etsy','gaming'];
+const ESSENTIAL_KW=['rent','mortgage','utilities','electricity','gas','water','grocery','groceries','supermarket','tesco','asda','sainsbury','morrisons','lidl','aldi','insurance','transport','bus','train','tube','fuel','petrol','diesel','medical','pharmacy','health','nhs','council tax','childcare','nursery','school','education','internet','broadband','phone','mobile'];
+const FINANCIAL_KW=['credit card','card repayment','card payment','credit card payment','loan repayment','loan payment','debt repayment','debt payment','repayment','overdraft','minimum payment','minimum pay','savings transfer','savings deposit','pension','investment','isa','transfer','internal'];
+// Categories whose recurring, subscription-like nature is worth calling out
+// specifically (a subset of NON_ESSENTIAL_KW) when they're consistently overspent.
+const SUBSCRIPTION_KW=['streaming','netflix','spotify','disney','subscription','gaming'];
+function isFinancialCat(cat){const c=cat.toLowerCase();return FINANCIAL_KW.some(k=>c.includes(k));}
+function isSubscriptionCat(cat){const c=cat.toLowerCase();return SUBSCRIPTION_KW.some(k=>c.includes(k));}
+function classifyCat(cat){
+  const c=cat.toLowerCase();
+  if(isFinancialCat(c)) return 'financial';
+  if(ESSENTIAL_KW.some(k=>c.includes(k))) return 'essential';
+  if(NON_ESSENTIAL_KW.some(k=>c.includes(k))) return 'non-essential';
+  return 'semi';
+}
+
 function buildPriorityActions(surplus,avgIn,monthlyExpense,totalDebt,totalSavings,efTarget,avalanche) {
   const actions=[];
   const now=new Date(),m=now.getMonth(),y=now.getFullYear();
@@ -5594,18 +5699,6 @@ function buildPriorityActions(surplus,avgIn,monthlyExpense,totalDebt,totalSaving
   }
   const catAvg={};
   Object.entries(catMonthly).forEach(([cat,amounts])=>{catAvg[cat]=amounts.reduce((s,v)=>s+v,0)/3;});
-
-  const NON_ESSENTIAL_KW=['eating out','restaurant','takeaway','takeaways','coffee','cafe','shopping','clothes','clothing','entertainment','cinema','hobbies','streaming','netflix','spotify','disney','subscription','alcohol','pub','bar','beauty','hair','gambling','dining','fast food','delivery','just eat','deliveroo','uber eats','fashion','amazon','ebay','etsy','gaming'];
-  const ESSENTIAL_KW=['rent','mortgage','utilities','electricity','gas','water','grocery','groceries','supermarket','tesco','asda','sainsbury','morrisons','lidl','aldi','insurance','transport','bus','train','tube','fuel','petrol','diesel','medical','pharmacy','health','nhs','council tax','childcare','nursery','school','education','internet','broadband','phone','mobile'];
-  const FINANCIAL_KW=['credit card','card repayment','card payment','credit card payment','loan repayment','loan payment','debt repayment','debt payment','repayment','overdraft','minimum payment','minimum pay','savings transfer','savings deposit','pension','investment','isa','transfer','internal'];
-  function isFinancialCat(cat){const c=cat.toLowerCase();return FINANCIAL_KW.some(k=>c.includes(k));}
-  function classifyCat(cat){
-    const c=cat.toLowerCase();
-    if(isFinancialCat(c)) return 'financial';
-    if(ESSENTIAL_KW.some(k=>c.includes(k))) return 'essential';
-    if(NON_ESSENTIAL_KW.some(k=>c.includes(k))) return 'non-essential';
-    return 'semi';
-  }
 
   // 1. Budget overruns (urgent)
   const overBudget=state.budgets.filter(b=>getCategoryMonthSpend(b.category,m,y)>b.limit);
@@ -5641,6 +5734,7 @@ function buildPriorityActions(surplus,avgIn,monthlyExpense,totalDebt,totalSaving
       actions.push({
         priority:4+i*0.1,color:isHigh?'pink':'orange',
         icon:isHigh?'✂️':'📊',
+        cat,
         title:isHigh
           ?`Cut ${cat} — ${fmt(avg)}/month (${pctOfIncome.toFixed(0)}% of income)`
           :`Track your ${cat} spend`,
@@ -5675,7 +5769,9 @@ function buildPriorityActions(surplus,avgIn,monthlyExpense,totalDebt,totalSaving
   return actions.sort((a,b)=>a.priority-b.priority);
 }
 
-function buildBudgetRecommendations() {
+// excludeCats: categories already surfaced elsewhere (e.g. buildPriorityActions()'s
+// non-essential CTAs) so the same category isn't suggested twice on the Growth tab.
+function buildBudgetRecommendations(excludeCats=new Set()) {
   const now=new Date(),recs=[];
   const catMonthly={};
   for(let i=1;i<=3;i++){
@@ -5688,15 +5784,18 @@ function buildBudgetRecommendations() {
       catMonthly[e.category].push(Number(e.amount));
     });
   }
-  const FINANCIAL_KW_LOCAL=['credit card','card repayment','card payment','credit card payment','loan repayment','loan payment','debt repayment','debt payment','repayment','overdraft','minimum payment','savings transfer','savings deposit','pension','investment','isa','transfer','internal'];
-  const isFinancial=cat=>{const c=cat.toLowerCase();return FINANCIAL_KW_LOCAL.some(k=>c.includes(k));};
+  // Ranked essential-first-excluded: subscriptions/non-essentials surface before
+  // unclassified ("semi") categories, since those are the ones actually worth a
+  // budget nudge — housing/utilities/groceries etc. are excluded entirely.
+  const tierOf=cat=>isSubscriptionCat(cat)?0:classifyCat(cat)==='non-essential'?1:2;
   Object.entries(catMonthly)
     .filter(([cat])=>!state.budgets.find(b=>b.category===cat))
-    .filter(([cat])=>!isFinancial(cat))
+    .filter(([cat])=>classifyCat(cat)!=='essential'&&classifyCat(cat)!=='financial')
+    .filter(([cat])=>!excludeCats.has(cat))
     .filter(([,amounts])=>amounts.length>=2)
     .map(([cat,amounts])=>({cat,avg:amounts.reduce((s,v)=>s+v,0)/amounts.length}))
-    .sort((a,b)=>b.avg-a.avg).slice(0,5)
-    .forEach(({cat,avg})=>recs.push({cat,avg,suggested:Math.ceil(avg*1.1/5)*5}));
+    .sort((a,b)=>tierOf(a.cat)-tierOf(b.cat)||b.avg-a.avg).slice(0,5)
+    .forEach(({cat,avg})=>recs.push({cat,avg,suggested:Math.ceil(avg*1.1/5)*5,isSubscription:isSubscriptionCat(cat)}));
   return recs;
 }
 
@@ -5902,7 +6001,8 @@ function renderTimeline() {
 
   const milestones=buildGrowthMilestones(surplus,avalanche,totalSavings,efTarget,monthlyExpense,stratKey);
   const actions=buildPriorityActions(surplus,avgIn,monthlyExpense,totalDebt,totalSavings,efTarget,avalanche);
-  const budgetRecs=buildBudgetRecommendations();
+  const alreadyFlaggedCats=new Set(actions.filter(a=>a.cat).map(a=>a.cat));
+  const budgetRecs=buildBudgetRecommendations(alreadyFlaggedCats);
 
   // RPG health bar colours
   function hpHex(s){return s>=76?'#CAF53A':s>=51?'#F59E0B':s>=26?'#FB923C':'#ef4444';}
@@ -6029,7 +6129,7 @@ function renderTimeline() {
               <div style="font-size:11px;color:${_accentHex(a.color)};font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Step ${i+1}</div>
               <div style="font-size:13px;font-weight:700;margin-bottom:4px">${esc(a.title)}</div>
               <div style="font-size:11px;color:var(--muted);line-height:1.55;margin-bottom:${a.cta?'8px':'0'}">${esc(a.desc)}</div>
-              ${a.cta?`<button class="btn btn-lime btn-sm" onclick="${a.cta.onclick}">${esc(a.cta.label)}</button>`:''}
+              ${a.cta?`<button class="btn btn-lime btn-sm" onclick="${esc(a.cta.onclick)}">${esc(a.cta.label)}</button>`:''}
             </div>
           </div>`;
         }).join('')}
@@ -6044,10 +6144,10 @@ function renderTimeline() {
         ${budgetRecs.map(r=>`
           <div class="budget-rec-row">
             <div>
-              <div style="font-size:13px;font-weight:600">${esc(r.cat)}</div>
-              <div style="font-size:11px;color:var(--muted)">Avg ${fmt(r.avg)}/month over last 3 months</div>
+              <div style="font-size:13px;font-weight:600">${esc(r.cat)}${r.isSubscription?' <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--pink);border:1px solid var(--pink);border-radius:4px;padding:1px 5px;margin-left:4px">Recurring</span>':''}</div>
+              <div style="font-size:11px;color:var(--muted)">${r.isSubscription?'Consistent recurring spend':'Avg'} ${fmt(r.avg)}/month over last 3 months</div>
             </div>
-            <button class="btn btn-lime btn-sm" onclick="openAddBudgetForCat(${JSON.stringify(r.cat)},${r.suggested})">Set ${fmt(r.suggested)} limit</button>
+            <button class="btn btn-lime btn-sm" onclick="${esc(`openAddBudgetForCat(${JSON.stringify(r.cat)},${r.suggested})`)}">Set ${fmt(r.suggested)} limit</button>
           </div>`).join('')}
       </div>
     </div>`:''}
@@ -6269,6 +6369,57 @@ const _SPOTLIGHTS = {
     ]
   }
 };
+
+// ── WHAT'S NEW ──────────────────────────────
+// Keyed by version — each release adds its own entry. Shown once to existing
+// users on the first boot after an update (see boot sequence + _hideOnboarding()).
+const WHATS_NEW = {
+  '1.2.1': {
+    tag: `What's New — v1.2.1`, tagColor: 'var(--lime)',
+    title: 'Business accounts, debt 0% tracking, and more',
+    sub: `A round-up of what's shipped recently:`,
+    points: [
+      { icon: '🧾', bg: 'rgba(202,245,58,0.1)', title: 'Business accounts + tax estimate', desc: 'A dedicated account type with a rough UK self-assessment estimate (Income Tax + Class 4 NI) right on the account\'s own page, plus an optional linked tax set-aside pot.' },
+      { icon: '⏰', bg: 'rgba(244,114,182,0.12)', title: 'Multiple 0% debt promotions', desc: 'Track several concurrent interest-free deals per debt, with expiry warnings, a dedicated Debt Detail page, and an extra-payment payoff simulator.' },
+      { icon: '📂', bg: 'rgba(96,165,250,0.1)', title: 'Bulk statement import', desc: 'Once you\'ve got 4+ months of history, import every statement at once — Waypoint auto-handles what it recognises and only asks about the rest.' },
+      { icon: '🎯', bg: 'rgba(45,212,191,0.1)', title: 'Smarter suggestions', desc: 'Budget and Growth tab suggestions now come with one-click "Create budget" actions, and focus on discretionary spending rather than housing/utilities.' },
+    ]
+  }
+};
+
+function showWhatsNew(version) {
+  const data = WHATS_NEW[version];
+  if (!data) return;
+  const ov = document.getElementById('whats-new-overlay');
+  const modal = document.getElementById('whats-new-modal');
+  if (!ov || !modal) return;
+  modal.innerHTML = `
+    <div class="spotlight-head">
+      <div class="spotlight-tag" style="background:${data.tagColor}20;color:${data.tagColor}">${esc(data.tag)}</div>
+      <div class="spotlight-title">${esc(data.title)}</div>
+      <div class="spotlight-sub">${esc(data.sub)}</div>
+    </div>
+    <div class="spotlight-points">
+      ${data.points.map(p=>`<div class="spotlight-point">
+        <div class="spotlight-icon" style="background:${p.bg}">${p.icon}</div>
+        <div>
+          <div class="spotlight-point-title">${esc(p.title)}</div>
+          <div class="spotlight-point-desc">${esc(p.desc)}</div>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="spotlight-foot">
+      <button class="btn btn-lime" style="padding:10px 20px" onclick="dismissWhatsNew()">Got it →</button>
+    </div>`;
+  ov.classList.add('sp-open');
+}
+
+function dismissWhatsNew() {
+  state.lastSeenVersion = APP_VERSION;
+  saveState();
+  const ov = document.getElementById('whats-new-overlay');
+  if (ov) ov.classList.remove('sp-open');
+}
 
 let _spCurrentKey = null;
 
@@ -6678,6 +6829,9 @@ function _hideOnboarding() {
   const ov = document.getElementById('onboarding-overlay');
   if (ov) ov.classList.remove('ob-visible');
   state.onboardingComplete = true;
+  // A user who just finished onboarding shouldn't see a "what's new" popup for
+  // the version they're installing right now — set their baseline silently.
+  state.lastSeenVersion = APP_VERSION;
   saveState();
 }
 
@@ -6937,12 +7091,166 @@ function _obRestore() {
 }
 
 // ════════════════════════════════
+// BUG REPORT WIDGET
+// ════════════════════════════════
+// To make in-app sending actually work: sign up at emailjs.com (free tier is
+// plenty), create an email service + a template with {{message}}/{{app_version}}/
+// {{platform}}/{{tab}}/{{timestamp}}/{{error_context}} variables, then fill in
+// the three IDs below. Until they're set, reports fall back to a pre-filled
+// mailto: link instead — a report is never silently lost either way.
+const EMAILJS_SERVICE_ID = '';
+const EMAILJS_TEMPLATE_ID = '';
+const EMAILJS_PUBLIC_KEY = '';
+const BUG_REPORT_EMAIL = 'alfie@aberrationmedia.co.uk';
+const EMAILJS_SDK_URL = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4.4.1/dist/email.min.js';
+const EMAILJS_SDK_INTEGRITY = 'sha384-SALc35EccAf6RzGw4iNsyj7kTPr33K7RoGzYu+7heZhT8s0GZouafRiCg1qy44AS';
+
+let _lastErrorContext = '';
+let _lastNudgeTime = 0;
+const NUDGE_COOLDOWN_MS = 3 * 60 * 1000;
+
+// Rage-click detection: 3+ clicks on what looks like the same element within
+// ~1.2s. Elements are re-created on every render() (main.innerHTML is replaced
+// wholesale), so raw DOM node identity won't survive between clicks — fingerprint
+// by tag+class+text instead, which does.
+let _clickHistory = [];
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button, a, [onclick]') || e.target;
+  const key = `${t.tagName}|${t.className}|${(t.textContent||'').trim().slice(0,40)}`;
+  const now = Date.now();
+  _clickHistory.push({ key, time: now });
+  _clickHistory = _clickHistory.filter(c => now - c.time < 1200);
+  if (_clickHistory.filter(c => c.key === key).length >= 3) {
+    _clickHistory = _clickHistory.filter(c => c.key !== key);
+    _lastErrorContext = '';
+    maybeShowBugNudge();
+  }
+}, true);
+
+// Uncaught errors are the strongest possible "something broke" signal.
+window.addEventListener('error', (e) => {
+  _lastErrorContext = `${e.message || 'Unknown error'}${e.error?.stack ? '\n' + e.error.stack.slice(0,500) : ''}`;
+  maybeShowBugNudge();
+});
+window.addEventListener('unhandledrejection', (e) => {
+  _lastErrorContext = `Unhandled promise rejection: ${e.reason?.message || e.reason || 'unknown'}`;
+  maybeShowBugNudge();
+});
+
+function maybeShowBugNudge() {
+  const now = Date.now();
+  if (now - _lastNudgeTime < NUDGE_COOLDOWN_MS) return;
+  _lastNudgeTime = now;
+  const el = document.getElementById('bug-nudge');
+  if (!el) return;
+  el.style.display = 'block';
+  clearTimeout(_bugNudgeTimer);
+  _bugNudgeTimer = setTimeout(hideBugNudge, 8000);
+}
+let _bugNudgeTimer = null;
+function hideBugNudge() {
+  const el = document.getElementById('bug-nudge');
+  if (el) el.style.display = 'none';
+}
+
+function openBugReport() {
+  hideBugNudge();
+  renderBugReportForm();
+  openModal('bug-report-modal');
+}
+
+function renderBugReportForm() {
+  const inner = document.getElementById('bug-report-modal-inner');
+  inner.innerHTML = `
+    <div class="modal-title">Report a bug</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Describe what happened — screenshots aren't needed, just tell us what you were doing and what went wrong.</p>
+    <textarea id="bug-report-text" placeholder="e.g. I tapped 'Add Payday' and nothing happened..."></textarea>
+    <div class="bug-report-meta">Sent with: app version, platform, current tab — never any of your financial data.</div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('bug-report-modal')">Cancel</button>
+      <button type="button" class="btn btn-lime" id="bug-report-send-btn" onclick="sendBugReport()">Send</button>
+    </div>`;
+  setTimeout(() => document.getElementById('bug-report-text')?.focus(), 50);
+}
+
+function _bugReportPayload(message) {
+  return {
+    message,
+    app_version: APP_VERSION,
+    platform: window.waypointApp?.platform || 'browser',
+    tab: state.activeTab || '',
+    timestamp: new Date().toISOString(),
+    error_context: _lastErrorContext || '',
+  };
+}
+
+function _mailtoFallback(payload) {
+  const subject = encodeURIComponent(`Waypoint bug report (v${payload.app_version})`);
+  const lines = [
+    payload.message, '',
+    '---',
+    `Version: ${payload.app_version}`,
+    `Platform: ${payload.platform}`,
+    `Tab: ${payload.tab}`,
+    `Time: ${payload.timestamp}`,
+  ];
+  if (payload.error_context) lines.push(`Error: ${payload.error_context}`);
+  const body = encodeURIComponent(lines.join('\n'));
+  const url = `mailto:${BUG_REPORT_EMAIL}?subject=${subject}&body=${body}`;
+  // Electron's renderer-side window.open() is locked down to http(s) only (see
+  // main.js's setWindowOpenHandler) — mailto: has to go through the exposed
+  // shell.openExternal() IPC bridge instead. Plain window.open() still works
+  // for the standalone static-file distribution, which has no such bridge.
+  if (window.waypointApp?.openExternal) window.waypointApp.openExternal(url);
+  else window.open(url, '_blank');
+}
+
+async function sendBugReport() {
+  const textEl = document.getElementById('bug-report-text');
+  const message = textEl.value.trim();
+  if (!message) { textEl.focus(); return; }
+  const payload = _bugReportPayload(message);
+  const btn = document.getElementById('bug-report-send-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  let sentDirectly = false;
+  try {
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) throw new Error('EmailJS not configured');
+    if (!window.emailjs) {
+      await loadScript(EMAILJS_SDK_URL, false, EMAILJS_SDK_INTEGRITY);
+      window.emailjs.init(EMAILJS_PUBLIC_KEY);
+    }
+    await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, payload);
+    sentDirectly = true;
+  } catch (err) {
+    _mailtoFallback(payload);
+  }
+  _lastErrorContext = '';
+  showBugReportThanks(sentDirectly);
+}
+
+function showBugReportThanks(sentDirectly) {
+  const inner = document.getElementById('bug-report-modal-inner');
+  inner.innerHTML = `
+    <div class="bug-report-thanks">
+      <div class="brt-emoji">🐛💥</div>
+      <div class="modal-title" style="text-align:center">Thanks for the report!</div>
+      <p style="font-size:12px;color:var(--muted);margin-top:6px">${sentDirectly ? 'It\'s on its way — we\'ll take a look.' : 'Your email app should have opened with the report pre-filled — just hit send there.'}</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center">
+      <button type="button" class="btn btn-lime" onclick="closeModal('bug-report-modal')">Close</button>
+    </div>`;
+}
+
+// ════════════════════════════════
 // BOOT
 // ════════════════════════════════
 loadProfiles();
 loadState();
 render();
 if (!state.onboardingComplete && state.accounts.length === 0) showOnboarding();
+else if (state.onboardingComplete && state.lastSeenVersion !== APP_VERSION) {
+  setTimeout(() => showWhatsNew(APP_VERSION), 500);
+}
 
 // Electron: add macOS class for traffic-light padding + drag region
 if (window.waypointApp && window.waypointApp.platform === 'darwin') {
