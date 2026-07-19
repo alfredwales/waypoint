@@ -29,6 +29,7 @@
       --muted:   #7878A0;
       --subtle:  #3A3A52;
       --r: 14px;
+      color-scheme: dark; /* native controls (select popups, date pickers) render dark, not browser-default white */
     }
 
     body {
@@ -78,8 +79,12 @@
       flex: 1;
       overflow-x: auto;
       scrollbar-width: none;
+      transition: mask-image 0.15s, -webkit-mask-image 0.15s;
     }
     nav::-webkit-scrollbar { display: none; }
+    nav.nav-fade-right { -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%); }
+    nav.nav-fade-left { -webkit-mask-image: linear-gradient(to left, black calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to left, black calc(100% - 28px), transparent 100%); }
+    nav.nav-fade-left.nav-fade-right { -webkit-mask-image: linear-gradient(to right, transparent 0%, black 28px, black calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to right, transparent 0%, black 28px, black calc(100% - 28px), transparent 100%); }
 
     nav button {
       background: none;
@@ -122,6 +127,7 @@
       background-position: right 9px center;
     }
     select:focus { outline: none; border-color: var(--lime); }
+    select option { background: var(--surface2); color: var(--text); }
 
     /* ── Cards ── */
     .card {
@@ -462,6 +468,7 @@
     .tb-bnpl   { color: var(--purple); border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.1); }
     .tb-other  { color: var(--muted);  border-color: var(--border);         background: var(--surface2); }
     .tb-current  { color: var(--lime);   border-color: rgba(202,245,58,0.3);  background: rgba(202,245,58,0.1); }
+    .tb-business { color: var(--blue);   border-color: rgba(96,165,250,0.3);  background: rgba(96,165,250,0.1); }
     .tb-savings  { color: var(--teal);   border-color: rgba(45,212,191,0.3);  background: rgba(45,212,191,0.1); }
     .tb-isa      { color: var(--purple); border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.1); }
     .tb-invest   { color: var(--orange); border-color: rgba(251,146,60,0.3);  background: rgba(251,146,60,0.1); }
@@ -651,7 +658,7 @@
       /* Bottom nav */
       .bottom-nav {
         display: grid;
-        grid-template-columns: repeat(6, 1fr);
+        grid-template-columns: repeat(7, 1fr);
         position: fixed;
         bottom: 0; left: 0; right: 0;
         background: var(--surface);
@@ -1170,20 +1177,24 @@
       </div>
       <div class="form-group"><label>Notes (optional)</label><input type="text" id="debt-note" placeholder="Balance transfer, promo deal…"></div>
       <div style="border-top:1px solid var(--border);padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:600">0% Promotions</span>
+          <button type="button" class="btn btn-outline btn-sm" onclick="addDebtPromotion()">+ Add promotion</button>
+        </div>
+        <div id="debt-promotions-list" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div class="info-note" style="margin-top:8px">Add one row per 0% deal (balance transfer, purchases, etc). Interest is only charged on balance above the covered amount — leave "Amount Covered" blank to treat the whole balance as 0% for that promo. Add more than one row if a card has separate concurrent deals.</div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <label class="toggle" style="text-transform:none;font-size:14px;letter-spacing:0;font-weight:400;color:var(--text)">
-            <input type="checkbox" id="debt-has-interest-free" onchange="onDebtInterestFreeChange()">
+            <input type="checkbox" id="debt-recurring-if" onchange="onDebtRecurringIFChange()">
             <span class="toggle-slider"></span>
           </label>
-          <span style="font-size:13px;font-weight:600">Interest-free period</span>
+          <span style="font-size:13px;font-weight:600">Recurring interest-free allowance</span>
         </div>
-        <div id="debt-interest-free-group" style="display:none;flex-direction:column;gap:12px">
-          <div class="form-row">
-            <div class="form-group"><label>Start Date</label><input type="date" id="debt-if-start"></div>
-            <div class="form-group"><label>Duration (months)</label><input type="number" id="debt-if-months" placeholder="24" min="1" step="1"></div>
-          </div>
-          <div class="form-group"><label>Amount Covered by 0% Deal</label><input type="number" id="debt-if-amount" placeholder="0.00 (leave blank = full balance)" min="0" step="0.01"></div>
-          <div class="info-note">Interest is only charged on balance above the covered amount. Leave "Amount Covered" blank to treat the whole balance as 0%.</div>
+        <div id="debt-recurring-if-group" style="display:none;flex-direction:column;gap:12px">
+          <div class="form-group"><label>Interest-free amount each cycle</label><input type="number" id="debt-recurring-if-amount" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="info-note">Always active, every month — for cards that never charge interest on the first amount of new spend, for example.</div>
         </div>
       </div>
       <div class="modal-footer">
@@ -1209,6 +1220,10 @@
         <div class="form-group"><label>Interest Rate AER %</label><input type="number" id="savings-rate" placeholder="4.5" min="0" step="0.01"></div>
       </div>
       <div class="form-group"><label>Target Amount (optional)</label><input type="number" id="savings-target" placeholder="5000.00" min="0" step="0.01"></div>
+      <div class="form-group" id="savings-linked-account-group" style="display:none">
+        <label>Linked Business Account (optional)</label>
+        <select id="savings-linked-account"><option value="">Not linked</option></select>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" onclick="closeModal('savings-modal')">Cancel</button>
         <button type="submit" class="btn btn-teal" id="savings-submit-btn">Add Pot</button>
@@ -1229,6 +1244,7 @@
           <label>Type</label>
           <select id="account-type" onchange="onAccountTypeChange()">
             <option value="current">Current Account</option>
+            <option value="business">Business Account</option>
             <option value="savings">Savings Account</option>
             <option value="isa">ISA</option>
             <option value="invest">Investment</option>
@@ -1320,6 +1336,10 @@
         <button class="btn btn-blue" onclick="startPDFImport()" style="width:100%;background:rgba(96,165,250,0.12);color:var(--blue);border:2px solid rgba(96,165,250,0.3)">&#8593; Import Statement (PDF or CSV)</button>
       </div>
       <div style="border-top:2px solid var(--border);padding-top:14px">
+        <div style="font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:0.5px;margin-bottom:6px">BULK IMPORT</div>
+        <div id="bulk-import-section"></div>
+      </div>
+      <div style="border-top:2px solid var(--border);padding-top:14px">
         <div style="font-family:'Unbounded',sans-serif;font-size:10px;letter-spacing:0.5px;margin-bottom:6px">SHARE</div>
         <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Share Waypoint with friends — send them the download link.</p>
         <button class="btn btn-outline" onclick="const b=this,url='https://github.com/alfredwales/waypoint/releases/latest/download/Waypoint-arm64.dmg';(window.waypointApp?.copyToClipboard?.(url)||navigator.clipboard?.writeText(url)||Promise.resolve());b.textContent='✓ Link copied!';setTimeout(()=>b.textContent='⬀ Copy download link',2000)" style="width:100%">&#8598; Copy download link</button>
@@ -1366,12 +1386,16 @@
     <div class="modal-title">Review Imported Transactions</div>
     <p style="font-size:12px;color:var(--muted)">Review what was detected from your statement. Uncheck rows you don't want, and edit any incorrect values before importing.</p>
     <div id="pdf-summary" style="font-size:12px;font-weight:600;color:var(--lime);margin-bottom:10px"></div>
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(45,212,191,0.06);border:1.5px solid rgba(45,212,191,0.2);border-radius:8px;margin-bottom:12px;flex-wrap:wrap">
+    <div id="pdf-account-bar" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(45,212,191,0.06);border:1.5px solid rgba(45,212,191,0.2);border-radius:8px;margin-bottom:12px;flex-wrap:wrap">
       <span style="font-size:12px;font-weight:600;white-space:nowrap">Apply all to account:</span>
       <select id="pdf-global-account" style="flex:1;min-width:140px;max-width:240px">
         <option value="">— select account —</option>
       </select>
       <button class="btn btn-teal btn-sm" onclick="applyImportAccount()">Apply to all</button>
+    </div>
+    <div id="pdf-debt-bar" style="display:none;align-items:center;gap:8px;padding:10px 12px;background:rgba(244,114,182,0.06);border:1.5px solid rgba(244,114,182,0.2);border-radius:8px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:600">💳 Importing to: <span id="pdf-debt-name" style="color:var(--pink)"></span></span>
+      <span style="font-size:11px;color:var(--muted)">Mark card payments as "Payment" so they don't count as spending, and interest charges as "Interest" to track them separately.</span>
     </div>
     <div id="pdf-vendor-match-prompt" style="display:none;align-items:center;gap:8px;padding:10px 12px;background:rgba(202,245,58,0.06);border:1.5px solid rgba(202,245,58,0.25);border-radius:8px;margin-bottom:12px;flex-wrap:wrap"></div>
     <div style="overflow-x:auto;max-height:55vh;overflow-y:auto">
@@ -1384,7 +1408,7 @@
             <th>Amount</th>
             <th>Type</th>
             <th>Category</th>
-            <th>Account</th>
+            <th id="pdf-account-col-header">Account</th>
           </tr>
         </thead>
         <tbody id="pdf-rows"></tbody>
@@ -1422,6 +1446,32 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-lime" onclick="closeImportExplainer()" style="width:100%">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Bulk Import — Assign Files ═══ -->
+<div class="modal-overlay" id="bulk-assign-modal">
+  <div class="modal modal-wide">
+    <div class="modal-title">Assign Each Statement</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Tell us which account or card each file belongs to. We've guessed where we could from the filename — double check them, then process.</p>
+    <div id="bulk-assign-list" style="display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bulk-assign-modal')">Cancel</button>
+      <button class="btn btn-lime" onclick="processBulkImport()">Process Statements</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Bulk Import — Review ═══ -->
+<div class="modal-overlay" id="bulk-review-modal">
+  <div class="modal modal-wide">
+    <div class="modal-title">Review Bulk Import</div>
+    <div id="bulk-review-summary" style="font-size:12px;font-weight:600;color:var(--lime);margin-bottom:14px"></div>
+    <div id="bulk-review-sections" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('bulk-review-modal')">Cancel</button>
+      <button class="btn btn-lime" onclick="confirmBulkReview()">Import Selected</button>
     </div>
   </div>
 </div>
@@ -1492,8 +1542,9 @@ function switchProfile(id) {
   saveState();
   const f=profiles.find(x=>x.id===id); if(!f) return;
   activeProfile=f; saveProfiles();
-  state={income:[],expenses:[],budgets:[],recurringBills:[],billSuggestions:[],debts:[],savings:[],accounts:[],currency:'£',activeTab:'dashboard',selectedAccount:null,viewMonth:new Date().getMonth(),viewYear:new Date().getFullYear(),onboardingComplete:false};
+  state={income:[],expenses:[],budgets:[],recurringBills:[],billSuggestions:[],debts:[],savings:[],accounts:[],currency:'£',activeTab:'dashboard',selectedAccount:null,selectedDebt:null,viewMonth:new Date().getMonth(),viewYear:new Date().getFullYear(),onboardingComplete:false};
   loadState(); closeModal('profile-modal');
+  document.getElementById('onboarding-overlay')?.classList.remove('ob-visible');
   _scrollTop(); render(); _scrollTop(); requestAnimationFrame(_scrollTop);
   if (!state.onboardingComplete && state.accounts.length === 0) showOnboarding();
 }
@@ -1532,12 +1583,13 @@ function renderProfileUI() {
 let state = {
   income:[], expenses:[], budgets:[], recurringBills:[], billSuggestions:[],
   debts:[], savings:[], accounts:[],
-  currency:'£', activeTab:'dashboard', selectedAccount:null,
+  currency:'£', activeTab:'dashboard', selectedAccount:null, selectedDebt:null,
   viewMonth: new Date().getMonth(), viewYear: new Date().getFullYear(),
   accountOrder:[],
   efSuggestionLastMonths: 0,
   onboardingComplete: false,
   seenSpotlights: {},
+  taxSettings: _defaultTaxSettings(),
 };
 
 function loadState() {
@@ -1553,14 +1605,25 @@ function loadState() {
     if (s.efSuggestionLastMonths) state.efSuggestionLastMonths = s.efSuggestionLastMonths;
     if (s.seenSpotlights) state.seenSpotlights = s.seenSpotlights;
     if (s.onboardingComplete) state.onboardingComplete = s.onboardingComplete;
+    state.taxSettings = { ..._defaultTaxSettings(), ...(s.taxSettings||{}) };
+    // Migrate old single-promo interest-free fields (hasInterestFree/ifStart/ifMonths/ifAmount)
+    // to the promotions[] array + recurringInterestFree, preserving "blank amount = full balance" semantics.
+    state.debts.forEach(d => {
+      if (!d.promotions) {
+        d.promotions = (d.hasInterestFree && d.ifStart && d.ifMonths)
+          ? [{ id: uid(), label: 'Promotional 0%', start: d.ifStart, months: Number(d.ifMonths), coveredAmount: d.ifAmount ? Number(d.ifAmount) : null }]
+          : [];
+      }
+      if (!d.recurringInterestFree) d.recurringInterestFree = { enabled: false, amount: 0 };
+    });
   } catch(e) { console.error(e); }
 }
 
 let _saveErrorShown = false;
 function saveState() {
   try {
-    const { income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights } = state;
-    localStorage.setItem(getStorageKey(), JSON.stringify({income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights}));
+    const { income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,taxSettings } = state;
+    localStorage.setItem(getStorageKey(), JSON.stringify({income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,taxSettings}));
   } catch(e) {
     console.error(e);
     if (!_saveErrorShown) {
@@ -1591,7 +1654,7 @@ function makeAbbr(name) {
   return (w + '····').slice(0,4);
 }
 
-const TYPE_ORDER = ['current','savings','isa','invest','cash'];
+const TYPE_ORDER = ['current','business','savings','isa','invest','cash'];
 function fmt(n) { return state.currency + Number(n).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function today() { return new Date().toISOString().split('T')[0]; }
 function parseDate(s) { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
@@ -1826,6 +1889,25 @@ function getLast6MonthsForAccount(accountId) {
   });
 }
 
+function getThisMonthCategoryDataForDebt(debtId) {
+  const now=new Date(),m=now.getMonth(),y=now.getFullYear();
+  const map={};
+  state.expenses.filter(e=>e.debtId===debtId&&!e.isTransfer&&e.category!=='Interest').filter(e=>{const d=parseDate(e.date);return d.getMonth()===m&&d.getFullYear()===y;}).forEach(e=>{map[e.category]=(map[e.category]||0)+Number(e.amount);});
+  const COLORS=['#CAF53A','#F472B6','#2DD4BF','#60A5FA','#A78BFA','#FB923C','#F59E0B','#10B981'];
+  return Object.entries(map).map(([label,value],i)=>({label,value,color:COLORS[i%COLORS.length]})).sort((a,b)=>b.value-a.value);
+}
+
+function getLast6MonthsForDebt(debtId) {
+  const now=new Date();
+  return Array.from({length:6},(_,i)=>{
+    const d=new Date(now.getFullYear(),now.getMonth()-5+i,1);
+    const mo=d.getMonth(),y=d.getFullYear();
+    const spend=state.expenses.filter(t=>t.debtId===debtId&&!t.isTransfer&&t.category!=='Interest').filter(t=>{const dt=parseDate(t.date);return dt.getMonth()===mo&&dt.getFullYear()===y;}).reduce((s,t)=>s+Number(t.amount),0);
+    const interest=state.expenses.filter(t=>t.debtId===debtId&&t.category==='Interest').filter(t=>{const dt=parseDate(t.date);return dt.getMonth()===mo&&dt.getFullYear()===y;}).reduce((s,t)=>s+Number(t.amount),0);
+    return {label:d.toLocaleDateString('en-GB',{month:'short'}),month:mo,year:y,spend,interest};
+  });
+}
+
 function getLast6MonthsForAccounts(ids) {
   const now=new Date();
   return Array.from({length:6},(_,i)=>{
@@ -1915,20 +1997,59 @@ function getAccountProjectedBalance(account) {
   };
 }
 
-function isInInterestFree(debt) {
-  if (!debt.hasInterestFree || !debt.ifStart || !debt.ifMonths) return false;
-  const start = parseDate(debt.ifStart); // parseDate avoids UTC vs local timezone mismatch
-  const end   = new Date(start);
-  end.setMonth(end.getMonth() + Number(debt.ifMonths));
-  const now = new Date();
-  return now >= start && now < end;
+// Aggregates every currently-active 0% promotion plus any recurring per-cycle
+// allowance into a single coverage figure. A promo with no coveredAmount set
+// means "covers the full balance" (matches the old single-promo behaviour),
+// so that short-circuits the rest once found.
+function _activePromoCoverage(debt, asOf) {
+  const now = asOf || new Date();
+  let coversFullBalance = false, covered = 0;
+  (debt.promotions||[]).forEach(p => {
+    if (!p.start || !p.months) return;
+    const start = parseDate(p.start); // parseDate avoids UTC vs local timezone mismatch
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + Number(p.months));
+    if (now >= start && now < end) {
+      if (!p.coveredAmount) coversFullBalance = true;
+      else covered += Number(p.coveredAmount);
+    }
+  });
+  if (debt.recurringInterestFree?.enabled) covered += Number(debt.recurringInterestFree.amount) || 0;
+  return { coversFullBalance, covered };
 }
 
-function getChargeableBal(debt) {
-  const bal = Number(debt.balance);
-  if (!isInInterestFree(debt)) return bal;
-  const covered = Number(debt.ifAmount) || bal; // blank = full balance covered
-  return Math.max(0, bal - covered);
+// Chargeable portion of a given balance under a resolved promo coverage —
+// shared by getChargeableBal() (balance as of now) and the payoff simulator
+// (running simulated balance as of a future month).
+function _chargeableFromCoverage(bal, coverage) {
+  if (coverage.coversFullBalance) return 0;
+  if (coverage.covered <= 0) return bal;
+  return Math.max(0, bal - coverage.covered);
+}
+
+function isInInterestFree(debt) {
+  const { coversFullBalance, covered } = _activePromoCoverage(debt);
+  return coversFullBalance || covered > 0;
+}
+
+// UI helper: per-promo active/ended status with resolved end dates, for badges and lists.
+function _debtPromoStatus(debt) {
+  const now = new Date();
+  const active = [], ended = [];
+  (debt.promotions||[]).forEach(p => {
+    if (!p.start || !p.months) return;
+    const start = parseDate(p.start);
+    const end = new Date(start); end.setMonth(end.getMonth() + Number(p.months));
+    if (now >= start && now < end) active.push({ ...p, end });
+    else if (now >= end) ended.push({ ...p, end });
+  });
+  active.sort((a,b) => a.end - b.end);
+  ended.sort((a,b) => b.end - a.end);
+  return { active, ended };
+}
+
+function getChargeableBal(debt, asOf) {
+  return _chargeableFromCoverage(Number(debt.balance), _activePromoCoverage(debt, asOf));
 }
 
 function calcMinPayment(debt) {
@@ -1950,16 +2071,27 @@ function calcMinPayment(debt) {
   return Number(debt.customMinPayment)||int;
 }
 
-function calcPayoffMonths(debt) {
-  const pmt=calcMinPayment(debt); if (pmt<=0) return Infinity;
+function calcPayoffMonths(debt, extra=0) {
+  const pmt=calcMinPayment(debt)+(Number(extra)||0); if (pmt<=0) return Infinity;
   const rate=Number(debt.apr)/100/12; let bal=Number(debt.balance),mo=0;
-  while(bal>0.01&&mo<600){bal=bal*(1+rate)-pmt;mo++;} return mo;
+  const now=new Date();
+  while(bal>0.01&&mo<600){
+    const asOf=new Date(now); asOf.setMonth(asOf.getMonth()+mo);
+    const chargeable=_chargeableFromCoverage(bal,_activePromoCoverage(debt,asOf));
+    bal=bal+chargeable*rate-pmt;mo++;
+  }
+  return mo;
 }
 
-function calcTotalInterest(debt) {
-  const pmt=calcMinPayment(debt); const rate=Number(debt.apr)/100/12;
+function calcTotalInterest(debt, extra=0) {
+  const pmt=calcMinPayment(debt)+(Number(extra)||0); const rate=Number(debt.apr)/100/12;
   let bal=Number(debt.balance),tot=0,mo=0;
-  while(bal>0.01&&mo<600){const int=bal*rate;tot+=int;bal=bal+int-pmt;mo++;}
+  const now=new Date();
+  while(bal>0.01&&mo<600){
+    const asOf=new Date(now); asOf.setMonth(asOf.getMonth()+mo);
+    const chargeable=_chargeableFromCoverage(bal,_activePromoCoverage(debt,asOf));
+    const int=chargeable*rate;tot+=int;bal=bal+int-pmt;mo++;
+  }
   return tot;
 }
 
@@ -1997,6 +2129,89 @@ function generateInsight(account) {
 }
 
 // ════════════════════════════════
+// TAX ESTIMATE (rough self-assessment estimate, NOT tax advice)
+// ════════════════════════════════
+// Rates/thresholds are editable in the Tax tab since UK bands change most tax years —
+// these defaults reflect the most recently confirmed published figures at the time of
+// writing and will drift out of date. Always a rough estimate: assumes business income
+// is the user's ONLY income, ignores business expenses (gross income only, by design),
+// and doesn't model Scottish rates, marriage allowance, pension contributions, or
+// multiple income sources.
+function _defaultTaxSettings() {
+  return {
+    personalAllowance: 12570,
+    taperThreshold: 100000,
+    basicRateThreshold: 50270,
+    higherRateThreshold: 125140,
+    basicRate: 20,
+    higherRate: 40,
+    additionalRate: 45,
+    ni4LowerThreshold: 12570,
+    ni4UpperThreshold: 50270,
+    ni4LowerRate: 6,
+    ni4UpperRate: 2,
+  };
+}
+
+function _currentTaxYearRange(ref=new Date()) {
+  const y = ref.getFullYear();
+  const aprSixThisYear = new Date(y, 3, 6); // month 3 = April (0-based)
+  const startYear = ref >= aprSixThisYear ? y : y - 1;
+  const start = new Date(startYear, 3, 6);
+  const end = new Date(startYear + 1, 3, 5);
+  return { start, end, label: `6 Apr ${startYear} – 5 Apr ${startYear + 1}` };
+}
+
+function _businessIncomeForTaxYear(range) {
+  const businessAccountIds = new Set(state.accounts.filter(a=>a.type==='business').map(a=>a.id));
+  if (!businessAccountIds.size) return 0;
+  return state.income
+    .filter(i => !i.isTransfer && i.accountId && businessAccountIds.has(i.accountId))
+    .filter(i => { const d=parseDate(i.date); return d>=range.start && d<=range.end; })
+    .reduce((s,i)=>s+Number(i.amount),0);
+}
+
+function _calcIncomeTax(income, s) {
+  const pa = Math.max(0, s.personalAllowance - Math.max(0, income - s.taperThreshold)/2);
+  const bands = [
+    { upto: pa, rate: 0 },
+    { upto: s.basicRateThreshold, rate: s.basicRate },
+    { upto: s.higherRateThreshold, rate: s.higherRate },
+    { upto: Infinity, rate: s.additionalRate },
+  ];
+  let tax = 0, prev = 0;
+  for (const b of bands) {
+    if (income <= prev) break;
+    const bandAmt = Math.max(0, Math.min(income, b.upto) - prev);
+    tax += bandAmt * b.rate / 100;
+    prev = Math.max(prev, b.upto);
+  }
+  return tax;
+}
+
+function _calcClass4NI(income, s) {
+  let ni = 0;
+  if (income > s.ni4LowerThreshold) {
+    ni += (Math.min(income, s.ni4UpperThreshold) - s.ni4LowerThreshold) * s.ni4LowerRate / 100;
+  }
+  if (income > s.ni4UpperThreshold) {
+    ni += (income - s.ni4UpperThreshold) * s.ni4UpperRate / 100;
+  }
+  return ni;
+}
+
+function _taxEstimate() {
+  const range = _currentTaxYearRange();
+  const income = _businessIncomeForTaxYear(range);
+  const incomeTax = _calcIncomeTax(income, state.taxSettings);
+  const ni = _calcClass4NI(income, state.taxSettings);
+  const total = incomeTax + ni;
+  const now = new Date();
+  const monthsLeft = Math.max(1, Math.round((range.end - now) / (30.44*864e5)));
+  return { range, income, incomeTax, ni, total, monthsLeft, suggestedMonthly: total / monthsLeft };
+}
+
+// ════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════
 function _scrollTop() {
@@ -2005,7 +2220,7 @@ function _scrollTop() {
   window.scrollTo(0, 0);
 }
 function switchTab(tab,el) {
-  state.activeTab=tab; state.selectedAccount=null; _selectedTxIds.clear(); _incomeSearch=''; _expenseSearch='';
+  state.activeTab=tab; state.selectedAccount=null; state.selectedDebt=null; _selectedTxIds.clear(); _incomeSearch=''; _expenseSearch='';
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   _scrollTop();
   render();
@@ -2014,7 +2229,7 @@ function switchTab(tab,el) {
   _checkSpotlight(tab);
 }
 function goToTab(tab) {
-  state.activeTab=tab; state.selectedAccount=null; _selectedTxIds.clear(); _incomeSearch=''; _expenseSearch='';
+  state.activeTab=tab; state.selectedAccount=null; state.selectedDebt=null; _selectedTxIds.clear(); _incomeSearch=''; _expenseSearch='';
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   _scrollTop();
   render();
@@ -2027,6 +2242,13 @@ function prevMonth(){if(--state.viewMonth<0){state.viewMonth=11;state.viewYear--
 function nextMonth(){const n=new Date();if(state.viewMonth===n.getMonth()&&state.viewYear===n.getFullYear())return;if(++state.viewMonth>11){state.viewMonth=0;state.viewYear++;}render();}
 function selectAccount(id){state.selectedAccount=id;_selectedPocket=null;_scrollTop();render();_scrollTop();requestAnimationFrame(_scrollTop);}
 function clearAccount(){state.selectedAccount=null;_selectedPocket=null;_scrollTop();render();_scrollTop();requestAnimationFrame(_scrollTop);}
+function goToDebtDetail(id){
+  state.activeTab='debt';
+  state.selectedDebt=id;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab==='debt'));
+  _scrollTop();render();_scrollTop();requestAnimationFrame(_scrollTop);
+}
+function clearDebtDetail(){state.selectedDebt=null;_scrollTop();render();_scrollTop();requestAnimationFrame(_scrollTop);}
 
 // ════════════════════════════════
 // MODALS
@@ -2037,9 +2259,9 @@ function resetProfileData(){
   if(!confirm(`Clear ALL data for "${activeProfile.name}"? Income, expenses, accounts, debts, bills — everything. This cannot be undone.`)) return;
   localStorage.removeItem(getStorageKey());
   state={income:[],expenses:[],budgets:[],recurringBills:[],billSuggestions:[],debts:[],savings:[],accounts:[],
-    currency:'£',activeTab:'dashboard',selectedAccount:null,
+    currency:'£',activeTab:'dashboard',selectedAccount:null,selectedDebt:null,
     viewMonth:new Date().getMonth(),viewYear:new Date().getFullYear(),accountOrder:[],
-    onboardingComplete:false,seenSpotlights:{}};
+    onboardingComplete:false,seenSpotlights:{},taxSettings:_defaultTaxSettings()};
   closeModal('profile-modal');
   _scrollTop(); render(); _scrollTop(); requestAnimationFrame(_scrollTop);
   showOnboarding();
@@ -2436,27 +2658,27 @@ function setEFGoal(amount, monthlyAmount) {
   }, 60);
 }
 
-function openEFSuggestionModal() {
-  const dm = _calcDataMonths();
-  if (dm < 2) return;
-  const {avgOut, recurring} = calcMonthlySurplus();
+// Shared by openEFSuggestionModal() and checkEFPlan() so both use identical numbers.
+function _efRecommendation() {
+  const {avgOut, recurring, avgIn, surplus} = calcMonthlySurplus();
   const monthly = avgOut + recurring;
-  if (monthly <= 0) return;
-
-  // Determine current EF total (savings + savings-type accounts)
   const currentEF = state.savings.reduce((s,p)=>s+Number(p.balance),0)
     + state.accounts.filter(a=>['savings','isa'].includes(a.type)).reduce((s,a)=>s+Number(a.balance),0);
-
-  // Health score for recommendation
   const totalDebt = state.debts.reduce((s,d)=>s+Number(d.balance),0);
-  const {avgIn, surplus} = calcMonthlySurplus();
   const {score} = calcHealthScore(avgIn, monthly, totalDebt, currentEF, surplus);
-
   const t1 = Math.ceil(monthly / 50) * 50;
   const t2 = Math.ceil(monthly * 2 / 50) * 50;
   const t6 = Math.ceil(monthly * 6 / 50) * 50;
   const recMonths = score < 40 ? 1 : score < 65 ? 2 : 6;
   const recAmount = recMonths === 1 ? t1 : recMonths === 2 ? t2 : t6;
+  return { monthly, currentEF, surplus, t1, t2, t6, recMonths, recAmount };
+}
+
+function openEFSuggestionModal() {
+  const dm = _calcDataMonths();
+  if (dm < 2) return;
+  const { monthly, currentEF, surplus, t1, t2, t6, recMonths, recAmount } = _efRecommendation();
+  if (monthly <= 0) return;
 
   // Suggested monthly contribution: based on expendable income (current surplus),
   // capped so we don't suggest saving more than the goal actually needs.
@@ -2498,6 +2720,23 @@ function openEFSuggestionModal() {
     ${tierRow(1, t1, 'A starter buffer — covers one month if income stops suddenly. The minimum everyone should hold.', 'Your financial health score suggests getting this in place first before anything else.')}
     ${tierRow(2, t2, 'Covers 2 months of all outgoings. Recommended for freelancers and those with variable income.', 'Your current score and situation point to 2 months as the right balance of protection vs capital deployed.')}
     ${tierRow(6, t6, 'Full 6-month security net — the gold standard recommended by most financial advisors.', 'Your financial health is strong enough to aim for the full 6-month target — this is the right level for long-term resilience.')}
+    <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <label class="toggle" style="text-transform:none;font-size:14px;letter-spacing:0;font-weight:400;color:var(--text)">
+          <input type="checkbox" id="ef-has-existing" onchange="onEFHasExistingChange()">
+          <span class="toggle-slider"></span>
+        </label>
+        <span style="font-size:13px;font-weight:600">I already have an emergency fund</span>
+      </div>
+      <div id="ef-existing-fields" style="display:none;flex-direction:column;gap:10px">
+        <div class="form-row">
+          <div class="form-group"><label>Current amount</label><input type="number" id="ef-existing-amount" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="form-group"><label>Monthly contribution</label><input type="number" id="ef-existing-contrib" placeholder="0.00" min="0" step="0.01"></div>
+        </div>
+        <button type="button" class="btn btn-teal btn-sm" style="align-self:flex-start" onclick="checkEFPlan()">Check my plan</button>
+        <div id="ef-plan-result"></div>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('ef-modal')">Dismiss</button>
     </div>`;
@@ -2505,6 +2744,48 @@ function openEFSuggestionModal() {
   openModal('ef-modal');
   state.efSuggestionLastMonths = dm;
   saveState();
+}
+
+function onEFHasExistingChange() {
+  const checked = document.getElementById('ef-has-existing').checked;
+  document.getElementById('ef-existing-fields').style.display = checked ? 'flex' : 'none';
+  if (!checked) document.getElementById('ef-plan-result').innerHTML = '';
+}
+
+function checkEFPlan() {
+  const resultEl = document.getElementById('ef-plan-result');
+  if (!resultEl) return;
+  const amount = parseFloat(document.getElementById('ef-existing-amount').value) || 0;
+  const contrib = parseFloat(document.getElementById('ef-existing-contrib').value) || 0;
+  const { surplus, t1, t2, t6, recAmount } = _efRecommendation();
+  const gap = Math.max(0, recAmount - amount);
+
+  if (gap === 0) {
+    resultEl.innerHTML = `<div style="font-size:12px;color:var(--lime);font-weight:600;margin-top:4px">&#10003; You're already at or above your recommended target of ${fmt(recAmount)} — great work, you're on track!</div>`;
+    return;
+  }
+
+  const monthsAtRate = contrib > 0 ? Math.ceil(gap / contrib) : null;
+  const onTrack = monthsAtRate !== null && monthsAtRate <= 24;
+
+  if (onTrack) {
+    resultEl.innerHTML = `<div style="font-size:12px;color:var(--lime);font-weight:600;margin-top:4px">&#10003; You're on track — at ${fmt(contrib)}/mo you'll reach your ${fmt(recAmount)} target in about ${monthsAtRate} month${monthsAtRate!==1?'s':''}.</div>`;
+    return;
+  }
+
+  if (surplus > contrib) {
+    // Room to contribute more — suggest raising the monthly amount to close the gap in ~12 months.
+    const suggestedContrib = Math.max(Math.round(contrib) + 1, Math.round(Math.min(surplus, gap / 12)));
+    const newMonths = Math.ceil(gap / suggestedContrib);
+    resultEl.innerHTML = `<div style="font-size:12px;color:var(--orange);font-weight:600;margin-top:4px">${contrib>0?`At ${fmt(contrib)}/mo it'll take ${monthsAtRate} months to reach ${fmt(recAmount)}.`:`You're not contributing anything toward this yet.`} Based on your current surplus, consider raising your contribution to <strong>${fmt(suggestedContrib)}/mo</strong> — that gets you there in about ${newMonths} months.</div>
+      <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="setEFGoal(${recAmount},${suggestedContrib})">Update goal to this plan</button>`;
+  } else {
+    // No realistic room to contribute more — suggest a nearer-term goal instead.
+    const achievableIn12mo = amount + contrib*12;
+    const nearestTier = achievableIn12mo >= t6 ? t6 : achievableIn12mo >= t2 ? t2 : t1;
+    resultEl.innerHTML = `<div style="font-size:12px;color:var(--orange);font-weight:600;margin-top:4px">At ${fmt(contrib)}/mo, reaching ${fmt(recAmount)} would take ${monthsAtRate!==null?monthsAtRate+' months':'a very long time'} — and your surplus doesn't leave much room to contribute more right now. A more achievable near-term goal might be <strong>${fmt(nearestTier)}</strong> instead.</div>
+      <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="setEFGoal(${nearestTier},${Math.max(1,Math.round(contrib))})">Update goal to this plan</button>`;
+  }
 }
 
 function checkEFSuggestion() {
@@ -2551,15 +2832,41 @@ function onDebtTypeChange(){
   document.getElementById('debt-term-group').style.display=t==='loan'?'flex':'none';
   document.getElementById('debt-custom-min-group').style.display=t==='other'?'flex':'none';
 }
-function onDebtInterestFreeChange(){
-  const checked=document.getElementById('debt-has-interest-free').checked;
-  document.getElementById('debt-interest-free-group').style.display=checked?'flex':'none';
+function onDebtRecurringIFChange(){
+  const checked=document.getElementById('debt-recurring-if').checked;
+  document.getElementById('debt-recurring-if-group').style.display=checked?'flex':'none';
+}
+
+let _debtPromotionsDraft = [];
+function _renderDebtPromotions(){
+  const list=document.getElementById('debt-promotions-list');
+  if(!list) return;
+  list.innerHTML = _debtPromotionsDraft.map((p,i)=>`
+    <div style="border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div class="form-group" style="flex:1;margin-bottom:0"><label>Label</label><input type="text" placeholder="Balance transfer" value="${esc(p.label||'')}" oninput="_debtPromotionsDraft[${i}].label=this.value"></div>
+        <button type="button" class="btn btn-pink btn-sm" onclick="removeDebtPromotion(${i})" style="flex-shrink:0">Remove</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Start Date</label><input type="date" value="${p.start||''}" onchange="_debtPromotionsDraft[${i}].start=this.value"></div>
+        <div class="form-group"><label>Duration (months)</label><input type="number" min="1" step="1" placeholder="24" value="${p.months||''}" onchange="_debtPromotionsDraft[${i}].months=this.value"></div>
+      </div>
+      <div class="form-group"><label>Amount Covered by 0% Deal</label><input type="number" min="0" step="0.01" placeholder="0.00 (leave blank = full balance)" value="${p.coveredAmount??''}" onchange="_debtPromotionsDraft[${i}].coveredAmount=this.value"></div>
+    </div>`).join('') || `<div style="font-size:12px;color:var(--muted)">No promotions added yet.</div>`;
+}
+function addDebtPromotion(){
+  _debtPromotionsDraft.push({label:'',start:'',months:'',coveredAmount:''});
+  _renderDebtPromotions();
+}
+function removeDebtPromotion(i){
+  _debtPromotionsDraft.splice(i,1);
+  _renderDebtPromotions();
 }
 function onAccountTypeChange(){
   const t=document.getElementById('account-type').value;
   const showInterest=['savings','isa','invest'].includes(t);
   document.getElementById('account-interest-group').style.display=showInterest?'flex':'none';
-  document.getElementById('account-overdraft-group').style.display=t==='current'?'flex':'none';
+  document.getElementById('account-overdraft-group').style.display=(t==='current'||t==='business')?'flex':'none';
 }
 function onOverdraftChange(){
   const checked=document.getElementById('account-has-overdraft').checked;
@@ -2569,10 +2876,12 @@ function openAddDebt(){
   document.getElementById('debt-modal-title').textContent='Add Debt';
   document.getElementById('debt-submit-btn').textContent='Add Debt';
   document.getElementById('debt-edit-id').value='';
-  ['debt-name','debt-balance','debt-apr','debt-term','debt-custom-min','debt-note','debt-if-start','debt-if-months','debt-if-amount'].forEach(id=>document.getElementById(id).value='');
+  ['debt-name','debt-balance','debt-apr','debt-term','debt-custom-min','debt-note','debt-recurring-if-amount'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('debt-type').value='credit-card';
-  document.getElementById('debt-has-interest-free').checked=false;
-  onDebtTypeChange();onDebtInterestFreeChange();
+  document.getElementById('debt-recurring-if').checked=false;
+  _debtPromotionsDraft=[];
+  _renderDebtPromotions();
+  onDebtTypeChange();onDebtRecurringIFChange();
   openModal('debt-modal');setTimeout(()=>document.getElementById('debt-name').focus(),50);
 }
 function openEditDebt(id){
@@ -2587,16 +2896,16 @@ function openEditDebt(id){
   document.getElementById('debt-term').value=d.term||'';
   document.getElementById('debt-custom-min').value=d.customMinPayment||'';
   document.getElementById('debt-note').value=d.note||'';
-  document.getElementById('debt-has-interest-free').checked=!!d.hasInterestFree;
-  document.getElementById('debt-if-start').value=d.ifStart||'';
-  document.getElementById('debt-if-months').value=d.ifMonths||'';
-  document.getElementById('debt-if-amount').value=d.ifAmount||'';
-  onDebtTypeChange();onDebtInterestFreeChange();openModal('debt-modal');
+  document.getElementById('debt-recurring-if').checked=!!d.recurringInterestFree?.enabled;
+  document.getElementById('debt-recurring-if-amount').value=d.recurringInterestFree?.amount||'';
+  _debtPromotionsDraft=JSON.parse(JSON.stringify(d.promotions||[]));
+  _renderDebtPromotions();
+  onDebtTypeChange();onDebtRecurringIFChange();openModal('debt-modal');
 }
 function submitDebt(e){
   e.preventDefault();
   const editId=document.getElementById('debt-edit-id').value;
-  const hasIF=document.getElementById('debt-has-interest-free').checked;
+  const recurringOn=document.getElementById('debt-recurring-if').checked;
   const data={
     name:document.getElementById('debt-name').value.trim(),
     type:document.getElementById('debt-type').value,
@@ -2605,10 +2914,17 @@ function submitDebt(e){
     term:parseInt(document.getElementById('debt-term').value)||0,
     customMinPayment:parseFloat(document.getElementById('debt-custom-min').value)||0,
     note:document.getElementById('debt-note').value.trim(),
-    hasInterestFree:hasIF,
-    ifStart:hasIF?document.getElementById('debt-if-start').value:'',
-    ifMonths:hasIF?parseInt(document.getElementById('debt-if-months').value)||0:0,
-    ifAmount:hasIF?parseFloat(document.getElementById('debt-if-amount').value)||0:0,
+    promotions:_debtPromotionsDraft.filter(p=>p.start&&p.months).map(p=>({
+      id:p.id||uid(),
+      label:(p.label||'').trim()||'Promotional 0%',
+      start:p.start,
+      months:parseInt(p.months)||0,
+      coveredAmount:p.coveredAmount?parseFloat(p.coveredAmount):null,
+    })),
+    recurringInterestFree:{
+      enabled:recurringOn,
+      amount:recurringOn?parseFloat(document.getElementById('debt-recurring-if-amount').value)||0:0,
+    },
   };
   if(editId){const idx=state.debts.findIndex(d=>d.id===editId);if(idx>-1)state.debts[idx]={id:editId,...data};}
   else state.debts.push({id:uid(),...data});
@@ -2619,11 +2935,21 @@ function deleteDebt(id){if(!confirm('Delete this debt?'))return;state.debts=stat
 // ════════════════════════════════
 // SAVINGS CRUD
 // ════════════════════════════════
+function _populateLinkedAccountSelect(selectedId=''){
+  const group=document.getElementById('savings-linked-account-group');
+  const sel=document.getElementById('savings-linked-account');
+  const bizAccounts=state.accounts.filter(a=>a.type==='business');
+  if(!bizAccounts.length){ group.style.display='none'; sel.value=''; return; }
+  group.style.display='flex';
+  sel.innerHTML='<option value="">Not linked</option>'+bizAccounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  sel.value=selectedId||'';
+}
 function openAddSavings(){
   document.getElementById('savings-modal-title').textContent='Add Savings Pot';
   document.getElementById('savings-submit-btn').textContent='Add Pot';
   document.getElementById('savings-edit-id').value='';
   ['savings-name','savings-balance','savings-contrib','savings-rate','savings-target'].forEach(id=>document.getElementById(id).value='');
+  _populateLinkedAccountSelect();
   openModal('savings-modal');setTimeout(()=>document.getElementById('savings-name').focus(),50);
 }
 function openEditSavings(id){
@@ -2636,12 +2962,13 @@ function openEditSavings(id){
   document.getElementById('savings-contrib').value=p.monthlyContribution||'';
   document.getElementById('savings-rate').value=p.interestRate||'';
   document.getElementById('savings-target').value=p.targetAmount||'';
+  _populateLinkedAccountSelect(p.linkedAccountId||'');
   openModal('savings-modal');
 }
 function submitSavings(e){
   e.preventDefault();
   const editId=document.getElementById('savings-edit-id').value;
-  const data={name:document.getElementById('savings-name').value.trim(),balance:parseFloat(document.getElementById('savings-balance').value)||0,monthlyContribution:parseFloat(document.getElementById('savings-contrib').value)||0,interestRate:parseFloat(document.getElementById('savings-rate').value)||0,targetAmount:parseFloat(document.getElementById('savings-target').value)||0};
+  const data={name:document.getElementById('savings-name').value.trim(),balance:parseFloat(document.getElementById('savings-balance').value)||0,monthlyContribution:parseFloat(document.getElementById('savings-contrib').value)||0,interestRate:parseFloat(document.getElementById('savings-rate').value)||0,targetAmount:parseFloat(document.getElementById('savings-target').value)||0,linkedAccountId:document.getElementById('savings-linked-account').value||null};
   if(editId){const idx=state.savings.findIndex(p=>p.id===editId);if(idx>-1)state.savings[idx]={id:editId,...data};}
   else state.savings.push({id:uid(),...data});
   saveState();closeModal('savings-modal');render();
@@ -2722,7 +3049,7 @@ function submitAccount(e){
     interestRate:parseFloat(document.getElementById('account-interest-rate').value)||0,
     monthlyContrib:parseFloat(document.getElementById('account-monthly-contrib').value)||0,
     targetAmount:parseFloat(document.getElementById('account-target').value)||0,
-    hasOverdraft:type==='current'&&hasOD,
+    hasOverdraft:(type==='current'||type==='business')&&hasOD,
     overdraftLimit:hasOD?parseFloat(document.getElementById('account-overdraft-limit').value)||0:0,
     overdraftAPR:hasOD?parseFloat(document.getElementById('account-overdraft-apr').value)||0:0,
     isJoint,
@@ -2743,6 +3070,7 @@ function _unassignAccount(id){
   state.income.forEach(i=>{ if(i.accountId===id) i.accountId=null; });
   state.expenses.forEach(e=>{ if(e.accountId===id) e.accountId=null; });
   state.recurringBills.forEach(b=>{ if(b.accountId===id) b.accountId=null; });
+  state.savings.forEach(p=>{ if(p.linkedAccountId===id) p.linkedAccountId=null; });
 }
 function deleteAccount(id){if(!confirm('Delete this account?'))return;state.accounts=state.accounts.filter(a=>a.id!==id);_unassignAccount(id);saveState();render();}
 function deleteAccountFromModal(){
@@ -2820,9 +3148,9 @@ function downloadBlankCopy() {
 let _pdfReviewRows = [];
 
 let _importPresetAccountId = null;
+let _importTargetDebtId = null;
 
-function startPDFImport(presetAccountId) {
-  _importPresetAccountId = presetAccountId || null;
+function _pickStatementFile() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = '.pdf,.csv';
   inp.onchange = e => {
@@ -2831,6 +3159,18 @@ function startPDFImport(presetAccountId) {
     else importPDFStatement(f);
   };
   inp.click();
+}
+
+function startPDFImport(presetAccountId) {
+  _importPresetAccountId = presetAccountId || null;
+  _importTargetDebtId = null;
+  _pickStatementFile();
+}
+
+function startDebtStatementImport(debtId) {
+  _importTargetDebtId = debtId || null;
+  _importPresetAccountId = null;
+  _pickStatementFile();
 }
 
 function applyImportAccount() {
@@ -2843,39 +3183,53 @@ function applyImportAccount() {
   });
 }
 
+// Pure parse: reads a file and returns rows, no modal/notice side effects.
+// Shared by the single-file flow below and the bulk-import flow.
+async function _extractStatementRows(file) {
+  if (file.name.toLowerCase().endsWith('.csv')) {
+    const text = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Could not read the file.'));
+      reader.readAsText(file);
+    });
+    return parseCSVStatement(text);
+  }
+  if (!window.pdfjsLib) {
+    await loadScript(
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs',
+      true,
+      'sha384-uwJM5C0hGZH5Ed/vHx4Ht1PUd8ABIDVIcLbHydZOdFL5eTUG8Jdr32xNVIyn0kYH'
+    );
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+  }
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  const lines = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const buckets = {};
+    content.items.forEach(item => {
+      const y = Math.round(item.transform[5] / 3) * 3;
+      if (!buckets[y]) buckets[y] = [];
+      buckets[y].push({ x: item.transform[4], t: item.str });
+    });
+    Object.keys(buckets).sort((a,b)=>Number(b)-Number(a)).forEach(y => {
+      const row = buckets[y].sort((a,b)=>a.x-b.x).map(i=>i.t).join(' ').trim();
+      if (row) lines.push(row);
+    });
+  }
+  return parsePDFLines(lines);
+}
+
 async function importPDFStatement(file) {
   closeModal('data-modal');
   const notice = showPDFNotice('Loading PDF parser… (requires internet)');
   try {
-    if (!window.pdfjsLib) {
-      await loadScript(
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs',
-        true,
-        'sha384-uwJM5C0hGZH5Ed/vHx4Ht1PUd8ABIDVIcLbHydZOdFL5eTUG8Jdr32xNVIyn0kYH'
-      );
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
-    }
-    notice.textContent = 'Reading PDF…';
-    const buf = await file.arrayBuffer();
-    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
-    const lines = [];
-    for (let p = 1; p <= pdf.numPages; p++) {
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      const buckets = {};
-      content.items.forEach(item => {
-        const y = Math.round(item.transform[5] / 3) * 3;
-        if (!buckets[y]) buckets[y] = [];
-        buckets[y].push({ x: item.transform[4], t: item.str });
-      });
-      Object.keys(buckets).sort((a,b)=>Number(b)-Number(a)).forEach(y => {
-        const row = buckets[y].sort((a,b)=>a.x-b.x).map(i=>i.t).join(' ').trim();
-        if (row) lines.push(row);
-      });
-    }
+    const rows = await _extractStatementRows(file);
     document.body.removeChild(notice);
-    const rows = parsePDFLines(lines);
     if (!rows.length) { alert('No transactions detected. This PDF format may not be supported — try exporting as CSV from your bank instead.'); return; }
     showPDFReviewModal(rows);
   } catch(err) {
@@ -3158,6 +3512,19 @@ function showPDFReviewModal(rows) {
   const catOpts = cats.map(c=>`<option value="${esc(c)}">`).join('');
   const acctOpts = state.accounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
 
+  const debtMode = !!_importTargetDebtId;
+  const targetDebt = debtMode ? state.debts.find(d=>d.id===_importTargetDebtId) : null;
+  const accountBar = document.getElementById('pdf-account-bar');
+  const debtBar = document.getElementById('pdf-debt-bar');
+  const acctColHeader = document.getElementById('pdf-account-col-header');
+  if (accountBar) accountBar.style.display = debtMode ? 'none' : 'flex';
+  if (debtBar) debtBar.style.display = debtMode ? 'flex' : 'none';
+  if (acctColHeader) acctColHeader.style.display = debtMode ? 'none' : '';
+  if (debtMode && targetDebt) {
+    const nameEl = document.getElementById('pdf-debt-name');
+    if (nameEl) nameEl.textContent = targetDebt.name;
+  }
+
   // Populate global account selector
   const globalSel = document.getElementById('pdf-global-account');
   if (globalSel) {
@@ -3202,17 +3569,18 @@ function showPDFReviewModal(rows) {
         <option value="expense"  ${r.type==='expense'?'selected':''}>Expense</option>
         <option value="income"   ${r.type==='income'?'selected':''}>Income</option>
         <option value="transfer" ${isTransfer?'selected':''}>Transfer</option>
+        ${debtMode?`<option value="interest" ${r.type==='interest'?'selected':''}>Interest</option><option value="payment" ${r.type==='payment'?'selected':''}>Payment</option>`:''}
       </select></td>
       <td>
         <input type="text" list="pdf-cats-${i}" value="${esc(r.cat)}" placeholder="Category…" style="width:110px" onchange="_onPdfCatChange(${i},this.value)">
         <datalist id="pdf-cats-${i}">${catOpts}</datalist>
       </td>
-      <td>
+      ${debtMode?'':`<td>
         <select style="width:110px" onchange="_pdfReviewRows[${i}]._suggestedAccountId=this.value">
           <option value="">No account</option>
           ${acctOpts.replace(`value="${sugAcct}"`,`value="${sugAcct}" selected`)}
         </select>
-      </td>
+      </td>`}
     </tr>`;
   }).join('');
   openModal('pdf-modal');
@@ -3286,26 +3654,35 @@ function _isDuplicateTx(type, amount, date, desc) {
 function importPDFConfirmed() {
   const selected=_pdfReviewRows.filter(r=>r.sel&&r.amount>0);
   if(!selected.length){ alert('No rows selected.'); return; }
-  let inc=0,exp=0,tr=0,dupes=0;
+  const debtId = _importTargetDebtId || null;
+  let inc=0,exp=0,tr=0,dupes=0,intCount=0,pay=0;
   selected.forEach(r=>{
-    const acctId = r._suggestedAccountId||null;
+    const acctId = debtId ? null : (r._suggestedAccountId||null);
     if(r.type==='income'){
       if(_isDuplicateTx('income',r.amount,r.date,r.desc)){dupes++;return;}
       state.income.push({id:uid(),source:r.desc||'Import',amount:r.amount,date:r.date,note:'Statement import',accountId:acctId});
       inc++;
     } else if(r.type==='transfer'){
-      state.expenses.push({id:uid(),category:'Transfer',amount:r.amount,date:r.date,note:r.desc||'',accountId:acctId,isTransfer:true});
+      state.expenses.push({id:uid(),category:'Transfer',amount:r.amount,date:r.date,note:r.desc||'',accountId:acctId,debtId,isTransfer:true});
       tr++;
+    } else if(r.type==='interest'){
+      state.expenses.push({id:uid(),category:'Interest',amount:r.amount,date:r.date,note:r.desc||'',accountId:acctId,debtId});
+      intCount++;
+    } else if(r.type==='payment'){
+      // A payment reduces what's owed, it isn't new spending — mark isTransfer so it's
+      // excluded from every spend/budget total, but it still shows in the debt's own ledger.
+      state.expenses.push({id:uid(),category:'Payment',amount:r.amount,date:r.date,note:r.desc||'',accountId:acctId,debtId,isTransfer:true});
+      pay++;
     } else {
       if(_isDuplicateTx('expense',r.amount,r.date,r.desc)){dupes++;return;}
-      state.expenses.push({id:uid(),category:r.cat||'Uncategorised',amount:r.amount,date:r.date,note:r.desc||'',accountId:acctId});
+      state.expenses.push({id:uid(),category:r.cat||'Uncategorised',amount:r.amount,date:r.date,note:r.desc||'',accountId:acctId,debtId});
       exp++;
     }
   });
   state.income.sort((a,b)=>b.date.localeCompare(a.date));
   state.expenses.sort((a,b)=>b.date.localeCompare(a.date));
   saveState(); closeModal('pdf-modal');
-  const parts=[inc?`${inc} income`:'',exp?`${exp} expense${exp!==1?'s':''}`:'',tr?`${tr} transfer${tr!==1?'s':''} (excluded from totals)`:'',dupes?`${dupes} duplicate${dupes!==1?'s':''} skipped`:''].filter(Boolean);
+  const parts=[inc?`${inc} income`:'',exp?`${exp} expense${exp!==1?'s':''}`:'',intCount?`${intCount} interest charge${intCount!==1?'s':''}`:'',pay?`${pay} payment${pay!==1?'s':''} (excluded from totals)`:'',tr?`${tr} transfer${tr!==1?'s':''} (excluded from totals)`:'',dupes?`${dupes} duplicate${dupes!==1?'s':''} skipped`:''].filter(Boolean);
   alert(`Imported: ${parts.join(', ')}.`);
   detectBillSuggestions();
   render();
@@ -3327,17 +3704,222 @@ function closeImportExplainer() {
 // ── CSV IMPORT ───────────────────────────────
 function importCSVStatement(file) {
   const notice = showPDFNotice('Reading CSV…');
-  const reader = new FileReader();
-  reader.onload = e => {
+  _extractStatementRows(file).then(rows => {
     document.body.removeChild(notice);
-    try {
-      const rows = parseCSVStatement(e.target.result);
-      if (!rows.length) { alert('No transactions detected.\n\nMake sure the CSV has a header row with columns for Date, Description, and Amount (or Debit/Credit).'); return; }
-      showPDFReviewModal(rows);
-    } catch(err) { alert('CSV import failed: ' + err.message); }
+    if (!rows.length) { alert('No transactions detected.\n\nMake sure the CSV has a header row with columns for Date, Description, and Amount (or Debit/Credit).'); return; }
+    showPDFReviewModal(rows);
+  }).catch(err => {
+    document.body.removeChild(notice);
+    alert('CSV import failed: ' + err.message);
+  });
+}
+
+// ── BULK IMPORT (multi-statement, history-driven) ───────────
+// Only offered once there's enough transaction history for auto-categorisation
+// to actually carry the load — see _updateBulkImportStatus().
+const BULK_IMPORT_MIN_MONTHS = 4;
+
+function _updateBulkImportStatus() {
+  const el = document.getElementById('bulk-import-section');
+  if (!el) return;
+  const dm = _calcDataMonths();
+  if (dm >= BULK_IMPORT_MIN_MONTHS) {
+    el.innerHTML = `
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Upload every statement you have at once — Waypoint auto-imports what it recognises from your history and only asks about the rest.</p>
+      <button class="btn btn-teal" onclick="startBulkImport()" style="width:100%">&#8593; Bulk Import All Statements</button>`;
+  } else {
+    el.innerHTML = `
+      <p style="font-size:12px;color:var(--muted);margin-bottom:6px">Upload every statement at once, with the system auto-handling anything it recognises.</p>
+      <div style="font-size:11px;color:var(--muted);padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px">&#128274; Unlocks once you have ${BULK_IMPORT_MIN_MONTHS} months of transaction history — you're at ${dm} month${dm!==1?'s':''} so far.</div>`;
+  }
+}
+
+let _bulkFiles = []; // [{file, target:'acct:<id>'|'debt:<id>'|''}]
+let _bulkUnsureGroups = {}; // key -> {id, label, isDebt, rows:[]}
+let _bulkSummary = { confident: 0, unsure: 0, accounts: 0 };
+
+function startBulkImport() {
+  if (_calcDataMonths() < BULK_IMPORT_MIN_MONTHS) return;
+  if (!state.accounts.length && !state.debts.length) {
+    alert('Add at least one account or card first, so bulk-imported statements have somewhere to go.');
+    return;
+  }
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.pdf,.csv'; inp.multiple = true;
+  inp.onchange = e => {
+    const files = [...e.target.files];
+    if (!files.length) return;
+    _bulkFiles = files.map(f => ({ file: f, target: _guessBulkTarget(f.name) }));
+    showBulkAssignModal();
   };
-  reader.onerror = () => { document.body.removeChild(notice); alert('Could not read the file.'); };
-  reader.readAsText(file);
+  inp.click();
+}
+
+function _guessBulkTarget(filename) {
+  const norm = filename.toLowerCase();
+  const acct = state.accounts.find(a => a.name && norm.includes(a.name.toLowerCase()));
+  if (acct) return 'acct:'+acct.id;
+  const debt = state.debts.find(d => d.name && norm.includes(d.name.toLowerCase()));
+  if (debt) return 'debt:'+debt.id;
+  return '';
+}
+
+function showBulkAssignModal() {
+  closeModal('data-modal');
+  const acctOpts = state.accounts.map(a=>`<option value="acct:${a.id}">${esc(a.name)}</option>`).join('');
+  const debtOpts = state.debts.map(d=>`<option value="debt:${d.id}">${esc(d.name)}</option>`).join('');
+  document.getElementById('bulk-assign-list').innerHTML = _bulkFiles.map((bf,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px">
+      <div style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(bf.file.name)}">${esc(bf.file.name)}</div>
+      <select style="width:200px;flex-shrink:0" onchange="_bulkFiles[${i}].target=this.value">
+        <option value="">— skip this file —</option>
+        ${acctOpts?`<optgroup label="Accounts">${acctOpts}</optgroup>`:''}
+        ${debtOpts?`<optgroup label="Cards &amp; Loans">${debtOpts}</optgroup>`:''}
+      </select>
+    </div>`).join('');
+  const selects = document.querySelectorAll('#bulk-assign-list select');
+  _bulkFiles.forEach((bf,i) => { if (bf.target && selects[i]) selects[i].value = bf.target; });
+  openModal('bulk-assign-modal');
+}
+
+async function processBulkImport() {
+  const targeted = _bulkFiles.filter(bf => bf.target);
+  if (!targeted.length) { alert('No files assigned — nothing to import.'); return; }
+  closeModal('bulk-assign-modal');
+  const notice = showPDFNotice(`Processing statements… (0/${targeted.length})`);
+  const groups = {};
+  let confident = 0, unsure = 0;
+  const historyMap = buildTxHistory();
+
+  for (let i = 0; i < targeted.length; i++) {
+    const bf = targeted[i];
+    notice.textContent = `Processing statements… (${i+1}/${targeted.length})`;
+    let rows;
+    try { rows = await _extractStatementRows(bf.file); } catch(err) { continue; }
+    if (!rows.length) continue;
+
+    const [kind, id] = bf.target.split(':');
+    const isDebt = kind === 'debt';
+    const targetObj = isDebt ? state.debts.find(d=>d.id===id) : state.accounts.find(a=>a.id===id);
+    if (!targetObj) continue;
+
+    // Same detection pipeline as the single-file review flow (bill match, transfers, history, keywords)
+    rows.forEach(r => {
+      if (r.type !== 'expense') return;
+      const bill = matchingBill(r.amount, r.desc, r.cat);
+      if (bill) { r.sel = false; r._matchedBill = bill.name; }
+    });
+    _detectTransferPairs(rows);
+    rows.forEach(r => { if (r._isTransfer) { r.type='transfer'; r.sel=false; } });
+
+    // On a card/loan statement, incoming credits are payments toward the balance, not income —
+    // and a recognisable interest charge is a structural match, not a guess. Both are "confident".
+    if (isDebt) {
+      rows.forEach(r => {
+        if (r.type === 'income') { r.type='payment'; r._isTransfer=true; r.cat='Payment'; }
+        else if (/interest\s*charg|purchase interest|cash interest|interest\s*fee/i.test(r.desc||'')) { r.cat='Interest'; r._autoMatched=true; }
+      });
+    }
+
+    _applyTxHistory(rows, historyMap);
+    rows.forEach(r => {
+      if (r._isTransfer || r.cat || r._matchedBill) return;
+      const suggested = _suggestCategory(r.desc);
+      if (suggested) { r.cat = suggested; r._catSuggested = true; }
+    });
+
+    rows.forEach(r => {
+      const isConfident = r._autoMatched || r._matchedBill || r._isTransfer;
+      if (isConfident) {
+        _commitBulkRow(r, targetObj, isDebt);
+        confident++;
+      } else {
+        if (!groups[bf.target]) groups[bf.target] = { id: targetObj.id, label: targetObj.name, isDebt, rows: [] };
+        groups[bf.target].rows.push(r);
+        unsure++;
+      }
+    });
+  }
+
+  document.body.removeChild(notice);
+  state.income.sort((a,b)=>b.date.localeCompare(a.date));
+  state.expenses.sort((a,b)=>b.date.localeCompare(a.date));
+  saveState();
+  detectBillSuggestions();
+  _bulkUnsureGroups = groups;
+  _bulkSummary = { confident, unsure, accounts: targeted.length };
+  showBulkReviewModal();
+}
+
+function _commitBulkRow(r, targetObj, isDebt) {
+  const acctId = isDebt ? null : targetObj.id;
+  const debtId = isDebt ? targetObj.id : null;
+  if (r.type === 'income') {
+    if (_isDuplicateTx('income', r.amount, r.date, r.desc)) return;
+    state.income.push({id:uid(), source:r.desc||'Import', amount:r.amount, date:r.date, note:'Statement import', accountId:acctId});
+    return;
+  }
+  if (r.type === 'transfer' || r.type === 'payment') {
+    state.expenses.push({id:uid(), category:r.cat||'Transfer', amount:r.amount, date:r.date, note:r.desc||'', accountId:acctId, debtId, isTransfer:true});
+    return;
+  }
+  if (_isDuplicateTx('expense', r.amount, r.date, r.desc)) return;
+  state.expenses.push({id:uid(), category:r.cat||'Uncategorised', amount:r.amount, date:r.date, note:r.desc||'', accountId:acctId, debtId});
+}
+
+function showBulkReviewModal() {
+  document.getElementById('bulk-review-summary').innerHTML =
+    `<strong>${_bulkSummary.confident}</strong> transaction${_bulkSummary.confident!==1?'s':''} auto-imported across ${_bulkSummary.accounts} statement${_bulkSummary.accounts!==1?'s':''}${_bulkSummary.unsure?` · <strong>${_bulkSummary.unsure}</strong> need your input below`:''}`;
+
+  const keys = Object.keys(_bulkUnsureGroups);
+  if (!keys.length) {
+    document.getElementById('bulk-review-sections').innerHTML = `<div class="empty"><div class="empty-icon">&#10003;</div><p>Everything was recognised automatically — nothing needs your input.</p></div>`;
+  } else {
+    const catOpts = getAllCategories().map(c=>`<option value="${esc(c)}">`).join('');
+    document.getElementById('bulk-review-sections').innerHTML = keys.map(key => {
+      const g = _bulkUnsureGroups[key];
+      const dotColor = g.isDebt ? 'var(--pink)' : accountCardColor(g.id);
+      return `<div class="card" style="margin-bottom:16px">
+        <div class="section-header" style="margin-bottom:10px">
+          <div class="section-title" style="display:flex;align-items:center;gap:8px">
+            <span style="width:10px;height:10px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0"></span>
+            ${esc(g.label)}
+          </div>
+          <span style="font-size:11px;color:var(--muted)">${g.rows.length} to review</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${g.rows.map((r,i)=>`<div class="entry-item" style="align-items:center">
+            <input type="checkbox" ${r.sel?'checked':''} style="width:18px;height:18px;flex-shrink:0;padding:0" onchange="_bulkUnsureGroups['${key}'].rows[${i}].sel=this.checked">
+            <div class="entry-main" style="flex:1;min-width:0">
+              <div class="entry-title">${esc(r.desc)}</div>
+              <div class="entry-note">${fmtDate(r.date)}</div>
+            </div>
+            <input type="text" list="bulk-cats-${key.replace(':','-')}-${i}" value="${esc(r.cat||'')}" placeholder="Category…" style="width:120px;flex-shrink:0" onchange="_bulkUnsureGroups['${key}'].rows[${i}].cat=this.value">
+            <datalist id="bulk-cats-${key.replace(':','-')}-${i}">${catOpts}</datalist>
+            <div class="entry-amount expense" style="flex-shrink:0">−${fmt(r.amount)}</div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  openModal('bulk-review-modal');
+}
+
+function confirmBulkReview() {
+  let count = 0;
+  Object.values(_bulkUnsureGroups).forEach(g => {
+    const targetObj = g.isDebt ? state.debts.find(d=>d.id===g.id) : state.accounts.find(a=>a.id===g.id);
+    if (!targetObj) return;
+    g.rows.filter(r=>r.sel && r.amount>0).forEach(r => { _commitBulkRow(r, targetObj, g.isDebt); count++; });
+  });
+  state.income.sort((a,b)=>b.date.localeCompare(a.date));
+  state.expenses.sort((a,b)=>b.date.localeCompare(a.date));
+  saveState();
+  closeModal('bulk-review-modal');
+  alert(`Imported ${_bulkSummary.confident + count} transactions in total (${_bulkSummary.confident} automatically, ${count} confirmed by you).`);
+  detectBillSuggestions();
+  render();
+  checkEFSuggestion();
 }
 
 function parseCSVLines(text) {
@@ -3449,12 +4031,14 @@ function generateDashboardInsights() {
   const now=new Date(), today=now.getDate(), m=now.getMonth(), y=now.getFullYear();
   const insights=[];
 
-  // Interest-free ending soon
+  // Interest-free promo(s) ending soon
   state.debts.forEach(d=>{
-    if(!d.hasInterestFree||!d.ifStart||!d.ifMonths) return;
-    const end=new Date(d.ifStart); end.setMonth(end.getMonth()+Number(d.ifMonths));
-    const days=Math.ceil((end-now)/(864e5));
-    if(days>0&&days<=60) insights.push({type:'warn',icon:'⏰',title:`0% deal ending on ${esc(d.name)}`,body:`${days} days left (${end.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}). Balance ${fmt(d.balance)} will start accruing ${fmt(Number(d.balance)*Number(d.apr)/100/12)}/mo in interest.`});
+    (d.promotions||[]).forEach(p=>{
+      if(!p.start||!p.months) return;
+      const end=new Date(p.start); end.setMonth(end.getMonth()+Number(p.months));
+      const days=Math.ceil((end-now)/(864e5));
+      if(days>0&&days<=60) insights.push({type:'warn',icon:'⏰',title:`${esc(p.label||'0% deal')} ending on ${esc(d.name)}`,body:`${days} days left (${end.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}). Balance ${fmt(d.balance)} will start accruing ${fmt(Number(d.balance)*Number(d.apr)/100/12)}/mo in interest.`});
+    });
   });
 
   // Overdraft warning
@@ -3495,14 +4079,21 @@ function generateSmartBudgetAdvice() {
   const now=new Date(),m=now.getMonth(),y=now.getFullYear();
   const tips=[];
 
-  // 3-month average spend by category
+  // Average spend/income by category over however many of the last 3 months
+  // actually have data — dividing by a flat 3 would silently deflate the
+  // average for anyone with less than 3 months of history.
+  const monthsWindow=[0,1,2].map(i=>new Date(y,m-i,1));
+  const expenseMonths=new Set(state.expenses.filter(e=>!e.isTransfer).map(e=>{const dt=parseDate(e.date);return `${dt.getFullYear()}-${dt.getMonth()}`;}));
+  const activeExpenseMonths=Math.max(1,monthsWindow.filter(d=>expenseMonths.has(`${d.getFullYear()}-${d.getMonth()}`)).length);
+  const incomeMonths=new Set(state.income.filter(i=>!i.isTransfer).map(i=>{const dt=parseDate(i.date);return `${dt.getFullYear()}-${dt.getMonth()}`;}));
+  const activeIncomeMonths=Math.max(1,monthsWindow.filter(d=>incomeMonths.has(`${d.getFullYear()}-${d.getMonth()}`)).length);
+
   const catAvg={};
-  for(let i=0;i<3;i++){
-    const d=new Date(y,m-i,1);
+  monthsWindow.forEach(d=>{
     state.expenses.filter(e=>!e.isTransfer).filter(e=>{const dt=parseDate(e.date);return dt.getMonth()===d.getMonth()&&dt.getFullYear()===d.getFullYear();})
-      .forEach(e=>{catAvg[e.category]=(catAvg[e.category]||0)+Number(e.amount)/3;});
-  }
-  const avgIncome=[0,1,2].map(i=>{const d=new Date(y,m-i,1);return getMonthIncome(d.getMonth(),d.getFullYear());}).reduce((s,v)=>s+v,0)/3;
+      .forEach(e=>{catAvg[e.category]=(catAvg[e.category]||0)+Number(e.amount)/activeExpenseMonths;});
+  });
+  const avgIncome=monthsWindow.map(d=>getMonthIncome(d.getMonth(),d.getFullYear())).reduce((s,v)=>s+v,0)/activeIncomeMonths;
   const recurring=getMonthlyRecurring();
   const totalCatSpend=Object.values(catAvg).reduce((s,v)=>s+v,0);
   const budgeted=new Set(state.budgets.map(b=>b.category));
@@ -3514,13 +4105,13 @@ function generateSmartBudgetAdvice() {
 
   // Consistently over-budget
   state.budgets.forEach(b=>{
-    const avg=[0,1,2].map(i=>{const d=new Date(y,m-i,1);return getCategoryMonthSpend(b.category,d.getMonth(),d.getFullYear());}).reduce((s,v)=>s+v,0)/3;
-    if(avg>b.limit*1.1) tips.push({type:'warn',title:`"${esc(b.category)}" consistently over budget`,body:`3-month avg ${fmt(avg)}/mo vs ${fmt(b.limit)} limit. Consider raising to ${fmt(Math.ceil(avg/10)*10)} or cutting back.`});
+    const avg=monthsWindow.map(d=>getCategoryMonthSpend(b.category,d.getMonth(),d.getFullYear())).reduce((s,v)=>s+v,0)/activeExpenseMonths;
+    if(avg>b.limit*1.1) tips.push({type:'warn',title:`"${esc(b.category)}" consistently over budget`,body:`${activeExpenseMonths>1?activeExpenseMonths+'-month avg':'Avg.'} ${fmt(avg)}/mo vs ${fmt(b.limit)} limit. Consider raising to ${fmt(Math.ceil(avg/10)*10)} or cutting back.`});
   });
 
   // Over-budgeted (consistently well under limit)
   state.budgets.forEach(b=>{
-    const avg=[0,1,2].map(i=>{const d=new Date(y,m-i,1);return getCategoryMonthSpend(b.category,d.getMonth(),d.getFullYear());}).reduce((s,v)=>s+v,0)/3;
+    const avg=monthsWindow.map(d=>getCategoryMonthSpend(b.category,d.getMonth(),d.getFullYear())).reduce((s,v)=>s+v,0)/activeExpenseMonths;
     if(b.limit>0&&avg>0&&avg<b.limit*0.5) tips.push({type:'pos',title:`"${esc(b.category)}" under-utilised`,body:`Spending only ${fmt(avg)}/mo against a ${fmt(b.limit)} budget. You could lower the limit and free up ${fmt(b.limit-avg)}.`});
   });
 
@@ -3563,7 +4154,7 @@ function generateSmartBudgetAdvice() {
 // RENDER HELPERS
 // ════════════════════════════════
 function typeBadge(type){
-  const map={'credit-card':['tb-cc','Credit Card'],'loan':['tb-loan','Loan'],'overdraft':['tb-od','Overdraft'],'bnpl':['tb-bnpl','BNPL'],'other':['tb-other','Other'],'current':['tb-current','Current'],'savings':['tb-savings','Savings'],'isa':['tb-isa','ISA'],'invest':['tb-invest','Investment'],'cash':['tb-cash','Cash']};
+  const map={'credit-card':['tb-cc','Credit Card'],'loan':['tb-loan','Loan'],'overdraft':['tb-od','Overdraft'],'bnpl':['tb-bnpl','BNPL'],'other':['tb-other','Other'],'current':['tb-current','Current'],'business':['tb-business','Business'],'savings':['tb-savings','Savings'],'isa':['tb-isa','ISA'],'invest':['tb-invest','Investment'],'cash':['tb-cash','Cash']};
   const[cls,lbl]=map[type]||['tb-other',type];
   return `<span class="type-badge ${cls}">${lbl}</span>`;
 }
@@ -3695,7 +4286,7 @@ function renderCardDock() {
     return;
   }
 
-  const typeLabels={'current':'CURR','savings':'SAVE','isa':'ISA','invest':'INV','cash':'CASH'};
+  const typeLabels={'current':'CURR','business':'BIZ','savings':'SAVE','isa':'ISA','invest':'INV','cash':'CASH'};
   const cards=accounts.map((a,i)=>{
     const color=accountCardColor(a.id);
     const abbr=makeAbbr(a.name);
@@ -3843,6 +4434,7 @@ function render(){
   _pocketSwitch=false; // reset after innerHTML set so renderAccountDetail could read it
   renderCardDock();
   renderProfileUI();
+  _updateBulkImportStatus();
   // Restore search input focus after re-render so typing doesn't lose cursor
   if((state.activeTab==='income'&&_incomeSearch)||(state.activeTab==='expenses'&&_expenseSearch)){
     const el=main.querySelector('input[type="search"]');
@@ -4009,6 +4601,8 @@ function renderAccountDetail(account) {
       </div>
     </div>
 
+    ${account.type==='business'&&!activePocketId?renderTaxSection(account):''}
+
     <div class="card">
       <div class="section-header">
         <div class="section-title">Transactions</div>
@@ -4105,6 +4699,39 @@ function calcSpendingForecast(days) {
   return { billsData, totalData, billEvents, hasVarHistory: totalVarSpend > 0 };
 }
 
+// Monotone cubic (Fritsch-Carlson) spline through a set of points. Unlike a naive
+// per-segment bezier, tangents are shared across adjacent segments so the curve has
+// no visible kinks at data points — and unlike a plain Catmull-Rom spline, it never
+// overshoots past a point, which matters here since spending/bills data is always
+// cumulative (non-decreasing) and an overshoot would visually look like spending dipped.
+function _monotonePathD(pts) {
+  const n = pts.length;
+  const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
+  let d = `M ${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
+  if (n < 2) return d;
+  if (n === 2) return d + ` L ${xs[1].toFixed(1)} ${ys[1].toFixed(1)}`;
+  const dxs = [], ms = [];
+  for (let i = 0; i < n - 1; i++) {
+    const dx = xs[i+1]-xs[i];
+    dxs.push(dx); ms.push((ys[i+1]-ys[i])/dx);
+  }
+  const tangents = [ms[0]];
+  for (let i = 1; i < n - 1; i++) tangents.push(ms[i-1]*ms[i] <= 0 ? 0 : (ms[i-1]+ms[i])/2);
+  tangents.push(ms[n-2]);
+  for (let i = 0; i < n - 1; i++) {
+    if (ms[i] === 0) { tangents[i] = 0; tangents[i+1] = 0; continue; }
+    const a = tangents[i]/ms[i], b = tangents[i+1]/ms[i], s = a*a + b*b;
+    if (s > 9) { const t = 3/Math.sqrt(s); tangents[i] = t*a*ms[i]; tangents[i+1] = t*b*ms[i]; }
+  }
+  for (let i = 0; i < n - 1; i++) {
+    const dx = dxs[i];
+    const cp1x = xs[i] + dx/3, cp1y = ys[i] + tangents[i]*dx/3;
+    const cp2x = xs[i+1] - dx/3, cp2y = ys[i+1] - tangents[i+1]*dx/3;
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${xs[i+1].toFixed(1)} ${ys[i+1].toFixed(1)}`;
+  }
+  return d;
+}
+
 function spendingForecastSVG(billsData, totalData, w=340, h=185) {
   const n = billsData.length;
   if (n < 2) return '';
@@ -4118,23 +4745,13 @@ function spendingForecastSVG(billsData, totalData, w=340, h=185) {
   // Closed area (fill)
   function areaPath(data) {
     const pts = data.map((v,i) => [toX(i), toY(v)]);
-    let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
-    for (let i = 1; i < n; i++) {
-      const [x0,y0]=pts[i-1],[x1,y1]=pts[i], cp=(innerW/(n-1))*0.45;
-      d += ` C ${(x0+cp).toFixed(1)} ${y0.toFixed(1)}, ${(x1-cp).toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`;
-    }
-    return d + ` L ${pts[n-1][0].toFixed(1)} ${botY} L ${pts[0][0].toFixed(1)} ${botY} Z`;
+    return _monotonePathD(pts) + ` L ${pts[n-1][0].toFixed(1)} ${botY} L ${pts[0][0].toFixed(1)} ${botY} Z`;
   }
 
   // Open curve (stroke only)
   function linePath(data) {
     const pts = data.map((v,i) => [toX(i), toY(v)]);
-    let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
-    for (let i = 1; i < n; i++) {
-      const [x0,y0]=pts[i-1],[x1,y1]=pts[i], cp=(innerW/(n-1))*0.45;
-      d += ` C ${(x0+cp).toFixed(1)} ${y0.toFixed(1)}, ${(x1-cp).toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`;
-    }
-    return d;
+    return _monotonePathD(pts);
   }
 
   // Date markers: Today, and evenly spaced ticks
@@ -4541,7 +5158,139 @@ function renderBudget(){
 }
 
 // ── DEBT ────────────────────────────────────
+function renderDebtDetail(debt) {
+  const months6 = getLast6MonthsForDebt(debt.id);
+  const catData = getThisMonthCategoryDataForDebt(debt.id);
+  const total = catData.reduce((s,c)=>s+c.value,0);
+  const donut = donutChartSVG(catData, 160, 18);
+  const interestLine = lineChartSVG(months6.map(m=>({label:m.label,value:m.interest})), 340, 110, '#F472B6');
+  const {active:activePromos,ended:endedPromos} = _debtPromoStatus(debt);
+  const chargeable = getChargeableBal(debt);
+  const mInt = chargeable*Number(debt.apr)/100/12;
+  const min = calcMinPayment(debt), payoffMo = calcPayoffMonths(debt), totalInt = calcTotalInterest(debt);
+  const monthSpend = months6[5]?.spend||0, monthInterest = months6[5]?.interest||0;
+
+  const recent = state.expenses.filter(e=>e.debtId===debt.id).map(e=>({...e,_t:'expense'})).sort((a,b)=>b.date.localeCompare(a.date));
+
+  return `
+    <div class="detail-bar">
+      <button class="btn btn-outline btn-sm" onclick="clearDebtDetail()">&#8592; Back</button>
+      <div class="detail-bar-title">${esc(debt.name)}</div>
+    </div>
+
+    <div style="background:var(--surface);border:2px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:16px;display:flex;flex-direction:column;gap:8px;min-height:148px">
+      <div>${typeBadge(debt.type)}</div>
+      <div style="font-family:'Unbounded',sans-serif;font-size:28px;letter-spacing:-1px;color:var(--pink);margin-top:auto">${fmt(debt.balance)}</div>
+      <div style="font-size:11px;color:var(--muted)">${debt.apr}% APR${debt.note?` · ${esc(debt.note)}`:''}</div>
+    </div>
+
+    ${activePromos.length||endedPromos.length||debt.recurringInterestFree?.enabled?`
+    <div style="background:rgba(202,245,58,0.06);border:2px solid rgba(202,245,58,0.2);border-radius:var(--r);padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">0% Promotions</div>
+      ${activePromos.map(p=>{
+        const daysLeft=Math.ceil((p.end-new Date())/864e5);
+        const soon=daysLeft<=60;
+        return `<div style="font-size:12px;color:${soon?'var(--orange)':'var(--lime)'};margin-bottom:4px">${soon?'&#9200;':'&#10003;'} ${esc(p.label||'Promotional 0%')}${p.coveredAmount?` on ${fmt(p.coveredAmount)}`:' on full balance'} — ${soon?`ends in ${daysLeft} days (${p.end.toLocaleDateString('en-GB',{month:'short',year:'numeric'})})`:`ends ${p.end.toLocaleDateString('en-GB',{month:'short',year:'numeric'})}`}</div>`;
+      }).join('')}
+      ${!activePromos.length&&endedPromos.length?`<div style="font-size:12px;color:var(--muted)">Last promo ended ${endedPromos[0].end.toLocaleDateString('en-GB',{month:'short',year:'numeric'})}</div>`:''}
+      ${debt.recurringInterestFree?.enabled?`<div style="font-size:12px;color:var(--teal)">&#10003; ${fmt(debt.recurringInterestFree.amount)} interest-free every cycle</div>`:''}
+    </div>`:''}
+
+    <div style="background:var(--surface);border:2px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;display:flex;gap:20px;flex-wrap:wrap">
+      <div><div class="ds-meta-label">This month spend</div><div class="ds-meta-value neg">${fmt(monthSpend)}</div></div>
+      <div><div class="ds-meta-label">This month interest</div><div class="ds-meta-value neg">${fmt(monthInterest)}</div></div>
+      <div><div class="ds-meta-label">Interest/mo now</div><div class="ds-meta-value ${mInt===0?'pos':'neg'}">${mInt===0?state.currency+'0 (0%)':fmt(mInt)}</div></div>
+      <div><div class="ds-meta-label">Min. Payment</div><div class="ds-meta-value">${fmt(min)}</div></div>
+      <div><div class="ds-meta-label">Payoff</div><div class="ds-meta-value" style="font-size:11px;font-weight:600">${payoffMo>=600?'Never at min. payment':payoffMo+' months ('+monthsFromNow(payoffMo)+')'}</div></div>
+      ${payoffMo<600?`<div><div class="ds-meta-label">Total Interest</div><div class="ds-meta-value neg">${fmt(totalInt)}</div></div>`:''}
+    </div>
+
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-title">Spending by Category <span style="font-size:10px;color:var(--muted);font-weight:400">· this month</span></div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="position:relative;flex-shrink:0">
+            ${donut}
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Unbounded',sans-serif;font-size:13px;pointer-events:none">${total>0?fmt(total):''}</div>
+          </div>
+          <div class="chart-legend">
+            ${catData.slice(0,5).map(c=>`<div class="legend-item"><span class="legend-dot" style="background:${c.color}"></span><span class="legend-label">${esc(c.label)}</span><span class="legend-val">${fmt(c.value)}</span></div>`).join('')}
+            ${catData.length===0?'<span style="color:var(--muted);font-size:12px">No spend imported yet</span>':''}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Interest Paid <span style="font-size:10px;color:var(--muted);font-weight:400">· 6 months</span></div>
+        ${interestLine}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Extra Payment Simulator</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">See how much faster you'd clear this and how much interest you'd save with extra monthly payments — without committing to anything.</p>
+      <div class="form-group" style="max-width:220px"><label>Extra per month</label><input type="number" id="debt-sim-extra" placeholder="0.00" min="0" step="10" oninput="updateDebtSimulator('${debt.id}')"></div>
+      <div id="debt-sim-result" style="font-size:12px;color:var(--muted);margin-top:8px">Enter an amount above to see the impact.</div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">Transactions</div>
+      </div>
+      ${recent.length===0?`
+        <div class="empty"><div class="empty-icon">📋</div><p>No statement transactions imported yet.<br>Upload a statement to see spending and interest here.</p></div>
+      `:`
+      <div class="entry-list">
+        ${recent.map(t=>{
+          const isPayment = t.category==='Payment';
+          const isInterest = t.category==='Interest';
+          return `<div class="entry-item">
+            <div class="entry-date">${fmtDate(t.date)}</div>
+            <div class="entry-main">
+              <div class="entry-title">${esc(t.note||t.category)}</div>
+              ${!isPayment&&!isInterest&&t.note?`<div class="entry-note">${esc(t.category)}</div>`:''}
+            </div>
+            ${isPayment?`<span class="tag" style="background:rgba(45,212,191,0.12);color:var(--teal);border:1px solid rgba(45,212,191,0.25);font-size:10px;padding:2px 7px;border-radius:4px">Payment</span>`
+              :isInterest?`<span class="tag" style="background:rgba(244,114,182,0.12);color:var(--pink);border:1px solid rgba(244,114,182,0.25);font-size:10px;padding:2px 7px;border-radius:4px">Interest</span>`
+              :_catColorMap[t.category]?`<span class="tag" style="${_catTagStyle(_catColorMap[t.category])}">${esc(t.category)}</span>`:''}
+            <div class="entry-amount ${isPayment?'pos':'neg'}">${isPayment?'−':'+'}${fmt(t.amount)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      `}
+      <div style="display:flex;gap:8px;padding-top:14px;border-top:1px solid var(--border);margin-top:4px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" onclick="startDebtStatementImport('${debt.id}')">&#8593; Upload Statement</button>
+        <button class="btn btn-outline btn-sm" onclick="openEditDebt('${debt.id}')">Edit Debt</button>
+        <button class="btn btn-pink btn-sm" onclick="deleteDebt('${debt.id}')">Delete</button>
+      </div>
+    </div>`;
+}
+
+function updateDebtSimulator(debtId) {
+  const debt = state.debts.find(d=>d.id===debtId);
+  const el = document.getElementById('debt-sim-result');
+  if (!debt || !el) return;
+  const extra = parseFloat(document.getElementById('debt-sim-extra')?.value) || 0;
+  if (extra <= 0) { el.textContent = 'Enter an amount above to see the impact.'; return; }
+  const baseMo = calcPayoffMonths(debt);
+  const newMo = calcPayoffMonths(debt, extra), newInt = calcTotalInterest(debt, extra);
+  if (newMo>=600) { el.innerHTML = `<span style="color:var(--muted)">Still won't clear within 50 years at this rate — try a larger amount.</span>`; return; }
+  if (baseMo>=600) {
+    // No sensible baseline to compare against — at minimum payment alone this debt never clears,
+    // so "interest saved" would be comparing against a runaway/compounding-forever number.
+    el.innerHTML = `<span style="color:var(--lime);font-weight:600">Clears in ${newMo} months (${monthsFromNow(newMo)})</span>, paying <strong style="color:var(--text)">${fmt(newInt)}</strong> in interest total — at minimum payment alone this debt would never clear.`;
+    return;
+  }
+  const baseInt = calcTotalInterest(debt);
+  const monthsSaved = baseMo-newMo;
+  const interestSaved = Math.max(0, baseInt-newInt);
+  el.innerHTML = `<span style="color:var(--lime);font-weight:600">Clears in ${newMo} months (${monthsFromNow(newMo)})</span>${monthsSaved>0?` — ${monthsSaved} month${monthsSaved!==1?'s':''} faster`:''}, saving <strong style="color:var(--text)">${fmt(interestSaved)}</strong> in interest.`;
+}
+
 function renderDebt(){
+  if (state.selectedDebt) {
+    const debt = state.debts.find(d=>d.id===state.selectedDebt);
+    if (debt) return renderDebtDetail(debt);
+  }
   const totalD=state.debts.reduce((s,d)=>s+Number(d.balance),0);
   const totalP=getTotalMinDebtPayments();
   return `
@@ -4556,22 +5305,31 @@ function renderDebt(){
         const min=calcMinPayment(d),mo=calcPayoffMonths(d),int=calcTotalInterest(d);
         const chargeable=getChargeableBal(d);
         const mInt=chargeable*Number(d.apr)/100/12;
-        const inFree=isInInterestFree(d);
+        const {active:activePromos,ended:endedPromos}=_debtPromoStatus(d);
         let ifBadge='',ifNote='';
-        if(d.hasInterestFree&&d.ifStart&&d.ifMonths){
-          const start=new Date(d.ifStart),end=new Date(start);
-          end.setMonth(end.getMonth()+Number(d.ifMonths));
-          const endStr=end.toLocaleDateString('en-GB',{month:'short',year:'numeric'});
-          if(inFree){
-            ifBadge=`<span class="type-badge" style="background:rgba(202,245,58,0.12);color:#CAF53A;border-color:rgba(202,245,58,0.3)">0% until ${endStr}</span>`;
-            ifNote=`<div style="font-size:11px;color:var(--lime);margin-bottom:8px">&#10003; Interest-free period active${d.ifAmount?` on ${fmt(d.ifAmount)}`:' on full balance'} — ends ${endStr}</div>`;
-          } else {
-            ifBadge=`<span class="type-badge tb-other">0% ended ${endStr}</span>`;
-          }
+        if(activePromos.length){
+          const soonest=activePromos[0];
+          const daysLeft=Math.ceil((soonest.end-new Date())/864e5);
+          const endingSoon=daysLeft<=60;
+          const endStr=soonest.end.toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+          const extra=activePromos.length>1?` +${activePromos.length-1} more`:'';
+          ifBadge=endingSoon
+            ?`<span class="type-badge" style="background:rgba(251,146,60,0.15);color:var(--orange);border-color:rgba(251,146,60,0.4)">&#9200; 0% ends in ${daysLeft}d${extra}</span>`
+            :`<span class="type-badge" style="background:rgba(202,245,58,0.12);color:#CAF53A;border-color:rgba(202,245,58,0.3)">0% until ${endStr}${extra}</span>`;
+          ifNote=activePromos.map(p=>{
+            const pDaysLeft=Math.ceil((p.end-new Date())/864e5);
+            const pSoon=pDaysLeft<=60;
+            return `<div style="font-size:11px;color:${pSoon?'var(--orange)':'var(--lime)'};margin-bottom:4px">${pSoon?'&#9200;':'&#10003;'} ${esc(p.label||'Promotional 0%')}${p.coveredAmount?` on ${fmt(p.coveredAmount)}`:' on full balance'} — ${pSoon?`ends in ${pDaysLeft} days (${p.end.toLocaleDateString('en-GB',{month:'short',year:'numeric'})})`:`ends ${p.end.toLocaleDateString('en-GB',{month:'short',year:'numeric'})}`}</div>`;
+          }).join('');
+        } else if(endedPromos.length){
+          ifBadge=`<span class="type-badge tb-other">0% ended ${endedPromos[0].end.toLocaleDateString('en-GB',{month:'short',year:'numeric'})}</span>`;
         }
-        return `<div class="ds-row">
+        if(d.recurringInterestFree?.enabled){
+          ifNote+=`<div style="font-size:11px;color:var(--teal);margin-bottom:4px">&#10003; ${fmt(d.recurringInterestFree.amount)} interest-free every cycle</div>`;
+        }
+        return `<div class="ds-row" style="cursor:pointer" onclick="goToDebtDetail('${d.id}')">
           <div class="ds-top"><div class="ds-name">${esc(d.name)}</div>${typeBadge(d.type)}${ifBadge}
-            <div class="ds-actions"><button class="btn btn-outline btn-sm" onclick="openEditDebt('${d.id}')">Edit</button><button class="btn btn-pink btn-sm" onclick="deleteDebt('${d.id}')">Delete</button></div></div>
+            <div class="ds-actions"><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openEditDebt('${d.id}')">Edit</button><button class="btn btn-pink btn-sm" onclick="event.stopPropagation();deleteDebt('${d.id}')">Delete</button></div></div>
           ${d.note?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">${esc(d.note)}</div>`:''}
           ${ifNote}
           <div class="ds-bottom">
@@ -4616,9 +5374,11 @@ function acctRow(a) {
 
 function savPotRow(p) {
   const proj=projectedBalance(p,12),growth=proj-Number(p.balance),mTgt=p.targetAmount?monthsToTarget(p):null;
+  const linkedAccount=p.linkedAccountId?state.accounts.find(a=>a.id===p.linkedAccountId):null;
   return `<div class="ds-row">
     <div class="ds-top"><div class="ds-name">${esc(p.name)}</div>${p.interestRate>0?`<span class="type-badge tb-savings">${p.interestRate}% AER</span>`:''}
       <div class="ds-actions"><button class="btn btn-outline btn-sm" onclick="openEditSavings('${p.id}')">Edit</button><button class="btn btn-pink btn-sm" onclick="deleteSavings('${p.id}')">Delete</button></div></div>
+    ${linkedAccount?`<div style="font-size:10px;color:var(--muted);margin-bottom:6px">🔗 Linked to <strong style="color:var(--text)">${esc(linkedAccount.name)}</strong></div>`:''}
     ${p.targetAmount?`<div style="margin-bottom:8px"><div class="progress-bar"><div class="progress-fill ok" style="width:${Math.min((Number(p.balance)/Number(p.targetAmount))*100,100)}%"></div></div><div style="font-size:10px;color:var(--muted);margin-top:4px">${fmt(p.balance)} of ${fmt(p.targetAmount)}</div></div>`:''}
     <div class="ds-bottom">
       <div><div class="ds-meta-label">Balance</div><div class="ds-meta-value pos">${fmt(p.balance)}</div></div>
@@ -4643,15 +5403,22 @@ function _accentHex(c){return{lime:'#CAF53A',pink:'#F472B6',teal:'#2DD4BF',blue:
 
 function calcMonthlySurplus() {
   const now=new Date();
-  let totalIn=0,totalOut=0,months=0;
+  let totalIn=0,totalOut=0,inMonths=0,outMonths=0;
   for(let i=1;i<=3;i++){
     let m=now.getMonth()-i,y=now.getFullYear();
     if(m<0){m+=12;y--;}
     const inc=getMonthIncome(m,y),exp=getMonthExpenses(m,y);
-    if(inc>0||exp>0){totalIn+=inc;totalOut+=exp;months++;}
+    if(inc>0){totalIn+=inc;inMonths++;}
+    if(exp>0){totalOut+=exp;outMonths++;}
   }
-  if(months===0){totalIn=getMonthIncome(now.getMonth(),now.getFullYear());totalOut=getMonthExpenses(now.getMonth(),now.getFullYear());months=1;}
-  const avgIn=totalIn/months,avgOut=totalOut/months,recurring=getMonthlyRecurring();
+  // Income and expenses are tracked independently: a past month can have
+  // outgoings logged but no income (e.g. irregular freelance pay timing)
+  // without that zero dragging the income average down too. Fall back to
+  // the current (in-progress) month if there's no prior data at all —
+  // better a partial-month estimate than a misleading zero.
+  if(inMonths===0){totalIn=getMonthIncome(now.getMonth(),now.getFullYear());inMonths=1;}
+  if(outMonths===0){totalOut=getMonthExpenses(now.getMonth(),now.getFullYear());outMonths=1;}
+  const avgIn=totalIn/inMonths,avgOut=totalOut/outMonths,recurring=getMonthlyRecurring();
   return {avgIn,avgOut,recurring,surplus:avgIn-avgOut-recurring};
 }
 
@@ -4962,7 +5729,7 @@ function buildStrategyWhy(key, surplus, avgIn, totalDebt, totalSavings, efTarget
   const maxAPR=state.debts.length?Math.max(...state.debts.map(d=>Number(d.apr))):0;
   const savRate=avgIn>0?Math.max(0,surplus)/avgIn:0;
   const topDebt=state.debts.length?[...state.debts].sort((a,b)=>Number(b.apr)-Number(a.apr))[0]:null;
-  const topInterest=topDebt?Number(topDebt.balance)*Number(topDebt.apr)/100/12:0;
+  const topInterest=topDebt?getChargeableBal(topDebt)*Number(topDebt.apr)/100/12:0;
   const whys={
     crisis:`Your outgoings exceed income by ${fmt(Math.abs(surplus))}/month. Left unchecked, this grows through credit and overdraft use. We've flagged the biggest non-essential categories below — they're your fastest levers.`,
     foundation:`${state.income.length===0?'No income data uploaded yet.':`You have ${(efCoverage*3).toFixed(1)} months of emergency fund and ${totalDebt>0?fmt(totalDebt)+' in tracked debt':'no tracked debt'}.`} Starting with full visibility into your actual spending patterns before picking a strategy avoids optimising for the wrong priorities.`,
@@ -4981,7 +5748,7 @@ function buildStrategySteps(key, surplus, avgIn, totalDebt, totalSavings, efTarg
   const byBal      = [...debts].sort((a, b) => Number(a.balance) - Number(b.balance));
   const byAPR      = [...debts].sort((a, b) => Number(b.apr) - Number(a.apr));
   const topDebt    = byAPR[0] || null;
-  const topInt     = topDebt ? Number(topDebt.balance) * Number(topDebt.apr) / 100 / 12 : 0;
+  const topInt     = topDebt ? getChargeableBal(topDebt) * Number(topDebt.apr) / 100 / 12 : 0;
   const needsPct   = avgIn > 0 ? Math.round(monthlyExpense / avgIn * 100) : null;
   const wantsPct   = avgIn > 0 ? Math.round(avgOut / avgIn * 100) : null;
   const savPct     = Math.round(savRate * 100);
@@ -5290,6 +6057,7 @@ function renderTimeline() {
 function renderSavings(){
   const sorted=sortedAccountsForDock();
   const current =sorted.filter(a=>a.type==='current');
+  const business =sorted.filter(a=>a.type==='business');
   const savAccts =sorted.filter(a=>a.type==='savings');
   const isas     =sorted.filter(a=>a.type==='isa');
   const invest   =sorted.filter(a=>a.type==='invest');
@@ -5312,6 +6080,12 @@ function renderSavings(){
     <div class="card">
       <div class="section-header"><div class="section-title">Current Accounts</div><button class="btn btn-outline btn-sm" onclick="openAddAccount()">+ Add</button></div>
       ${current.map(acctRow).join('')}
+    </div>`:'';
+
+  const businessSection = business.length?`
+    <div class="card">
+      <div class="section-header"><div class="section-title">Business Accounts</div><button class="btn btn-outline btn-sm" onclick="openAddAccount()">+ Add</button></div>
+      ${business.map(acctRow).join('')}
     </div>`:'';
 
   const savingsSection=`
@@ -5344,9 +6118,105 @@ function renderSavings(){
     </div>`:''}
     ${state.accounts.length===0&&!state.savings.length?`<div class="card"><div class="empty"><div class="empty-icon">🏦</div><p>Add your first account to get started.</p></div><div style="text-align:center;padding-bottom:12px"><button class="btn btn-lime" onclick="openAddAccount()">+ Add Account</button></div></div>`:''}
     ${currentSection}
+    ${businessSection}
     ${savingsSection}
     ${investSection}
     ${cashSection}`;
+}
+
+// ── TAX (rough self-assessment estimate) ────
+// Rendered inline on a business account's own detail page (see renderAccountDetail) —
+// there's no dedicated Tax tab. The estimate itself is still based on combined income
+// across all business accounts (that's what actually gets taxed), not just this one.
+function renderTaxSection(account) {
+  const est = _taxEstimate();
+  const s = state.taxSettings;
+  return `
+    <div class="card">
+      <div class="card-title">🧾 Tax Estimate (${est.range.label})</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Business Income</div><div class="stat-val pos">${fmt(est.income)}</div><div class="stat-sub">${est.range.label}</div></div>
+        <div class="stat-card"><div class="stat-label">Estimated Tax + NI</div><div class="stat-val neg">${fmt(est.total)}</div><div class="stat-sub">rough estimate</div></div>
+        <div class="stat-card"><div class="stat-label">Suggested Set-Aside</div><div class="stat-val">${fmt(est.suggestedMonthly)}/mo</div><div class="stat-sub">${est.monthsLeft} months left in tax year</div></div>
+      </div>
+
+      <div style="background:rgba(251,146,60,0.08);border:2px solid rgba(251,146,60,0.25);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--muted)">
+        <strong style="color:var(--orange)">⚠ Rough estimate, not tax advice.</strong> Based on gross business income only (no expenses deducted), assumes this is your only income, and doesn't account for Scottish rates, marriage allowance, or pension contributions. Rates below are editable — check current thresholds at gov.uk before relying on this for real tax provisioning.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>Business income (${est.range.label})</span><strong>${fmt(est.income)}</strong></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>Estimated Income Tax</span><span>${fmt(est.incomeTax)}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>Estimated Class 4 National Insurance</span><span>${fmt(est.ni)}</span></div>
+        <div style="height:1px;background:var(--border);margin:2px 0"></div>
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700"><span>Total estimated</span><span style="color:var(--pink)">${fmt(est.total)}</span></div>
+      </div>
+      <div style="display:flex;gap:8px;padding-top:14px;margin-top:10px;border-top:1px solid var(--border)">
+        <button class="btn btn-teal btn-sm" onclick="setTaxSetAsideGoal(${est.suggestedMonthly.toFixed(2)},'${account.id}')">Set aside in a pot</button>
+      </div>
+
+      <details style="margin-top:16px">
+        <summary style="cursor:pointer;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">Tax Rate Settings</summary>
+        <div style="margin-top:12px">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-outline btn-sm" onclick="resetTaxSettings()">Reset to defaults</button></div>
+          <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Only change these if you know the current published rates and thresholds have moved — they're pre-filled with the most recently confirmed figures.</p>
+          <div class="form-row">
+            <div class="form-group"><label>Personal Allowance</label><input type="number" value="${s.personalAllowance}" onchange="updateTaxSetting('personalAllowance',this.value)"></div>
+            <div class="form-group"><label>PA Taper Threshold</label><input type="number" value="${s.taperThreshold}" onchange="updateTaxSetting('taperThreshold',this.value)"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Basic Rate Threshold</label><input type="number" value="${s.basicRateThreshold}" onchange="updateTaxSetting('basicRateThreshold',this.value)"></div>
+            <div class="form-group"><label>Basic Rate %</label><input type="number" step="0.1" value="${s.basicRate}" onchange="updateTaxSetting('basicRate',this.value)"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Higher Rate Threshold</label><input type="number" value="${s.higherRateThreshold}" onchange="updateTaxSetting('higherRateThreshold',this.value)"></div>
+            <div class="form-group"><label>Higher Rate %</label><input type="number" step="0.1" value="${s.higherRate}" onchange="updateTaxSetting('higherRate',this.value)"></div>
+          </div>
+          <div class="form-group"><label>Additional Rate %</label><input type="number" step="0.1" value="${s.additionalRate}" onchange="updateTaxSetting('additionalRate',this.value)"></div>
+          <div style="height:1px;background:var(--border);margin:10px 0"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Class 4 NI Lower Threshold</label><input type="number" value="${s.ni4LowerThreshold}" onchange="updateTaxSetting('ni4LowerThreshold',this.value)"></div>
+            <div class="form-group"><label>Class 4 NI Lower Rate %</label><input type="number" step="0.1" value="${s.ni4LowerRate}" onchange="updateTaxSetting('ni4LowerRate',this.value)"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Class 4 NI Upper Threshold</label><input type="number" value="${s.ni4UpperThreshold}" onchange="updateTaxSetting('ni4UpperThreshold',this.value)"></div>
+            <div class="form-group"><label>Class 4 NI Upper Rate %</label><input type="number" step="0.1" value="${s.ni4UpperRate}" onchange="updateTaxSetting('ni4UpperRate',this.value)"></div>
+          </div>
+        </div>
+      </details>
+    </div>`;
+}
+
+function updateTaxSetting(key, value) {
+  state.taxSettings[key] = parseFloat(value) || 0;
+  saveState();
+  render();
+}
+
+function resetTaxSettings() {
+  if (!confirm('Reset all tax rate settings to defaults?')) return;
+  state.taxSettings = _defaultTaxSettings();
+  saveState();
+  render();
+}
+
+function setTaxSetAsideGoal(monthlyAmount, accountId) {
+  // Prefer a pot already linked to this business account; fall back to matching by
+  // name for pots created before pot-to-account linking existed.
+  const existing = state.savings.find(p => p.linkedAccountId===accountId)
+    || state.savings.find(p => !p.linkedAccountId && p.name.toLowerCase().includes('tax'));
+  if (existing) {
+    existing.monthlyContribution = monthlyAmount;
+    existing.linkedAccountId = accountId;
+    saveState(); render();
+    return;
+  }
+  openAddSavings();
+  setTimeout(()=>{
+    document.getElementById('savings-name').value = 'Tax Set-Aside';
+    document.getElementById('savings-contrib').value = monthlyAmount;
+    _populateLinkedAccountSelect(accountId);
+  }, 60);
 }
 
 // ════════════════════════════════
@@ -5897,6 +6767,7 @@ function _renderObStep() {
           <label class="ob-label">Type</label>
           <select class="ob-select" id="ob-acct-type">
             <option value="current">Current</option>
+            <option value="business">Business</option>
             <option value="savings">Savings</option>
             <option value="isa">ISA</option>
             <option value="invest">Invest</option>
@@ -6126,6 +6997,26 @@ window.addEventListener('scroll', () => {
   clearTimeout(_scrollFadeTimer);
   _scrollFadeTimer = setTimeout(() => document.documentElement.classList.remove('is-scrolling'), 900);
 }, { passive: true });
+
+// Top nav: when the window is too narrow to fit every tab, the nav scrolls
+// horizontally. Fade the overflowing edge so it's visible there's more to
+// scroll to, and let a plain vertical wheel/trackpad gesture scroll it.
+function _updateNavFade() {
+  const nav = document.getElementById('top-nav');
+  if (!nav) return;
+  nav.classList.toggle('nav-fade-left', nav.scrollLeft > 2);
+  nav.classList.toggle('nav-fade-right', nav.scrollLeft < nav.scrollWidth - nav.clientWidth - 2);
+}
+(() => {
+  const nav = document.getElementById('top-nav');
+  if (!nav) return;
+  nav.addEventListener('scroll', _updateNavFade, { passive: true });
+  nav.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { nav.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
+  window.addEventListener('resize', _updateNavFade);
+  _updateNavFade();
+})();
 </script>
 
 <nav class="bottom-nav" id="bottom-nav">
