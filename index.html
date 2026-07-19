@@ -1199,6 +1199,24 @@
   </div>
 </div>
 
+<!-- ═══ MODAL: Category Rule ═══ -->
+<div class="modal-overlay" id="category-rule-modal">
+  <div class="modal">
+    <div class="modal-title" id="category-rule-modal-title">Add Category Rule</div>
+    <form onsubmit="submitCategoryRule(event)">
+      <input type="hidden" id="category-rule-edit-id">
+      <div class="form-group"><label>Vendor Contains</label><input type="text" id="category-rule-vendor" placeholder="e.g. netflix, tesco" required autocomplete="off"></div>
+      <div class="form-group"><label>Category</label><input type="text" id="category-rule-category" list="category-rule-category-list" placeholder="e.g. Subscriptions" required autocomplete="off"></div>
+      <datalist id="category-rule-category-list"></datalist>
+      <p style="font-size:11px;color:var(--muted);margin-top:-6px">Any transaction whose description contains this text (not case-sensitive) will always be filed under this category during import — overriding both learned history and keyword guesses.</p>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('category-rule-modal')">Cancel</button>
+        <button type="submit" class="btn btn-lime" id="category-rule-submit-btn">Add Rule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ═══ MODAL: Debt ═══ -->
 <div class="modal-overlay" id="debt-modal">
   <div class="modal">
@@ -1585,7 +1603,7 @@ const ACTIVE_KEY     = 'fb-active-profile';
 // Bumped by hand alongside package.json's version each release. Kept as a plain
 // constant (not read from Electron's getVersion() IPC) so "what's new" gating
 // works identically in the standalone static-file distribution, which has no IPC.
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.2.2';
 
 let profiles = [{ id:'default', name:'My Budget', color:'#CAF53A' }];
 let activeProfile = profiles[0];
@@ -1606,7 +1624,7 @@ function switchProfile(id) {
   saveState();
   const f=profiles.find(x=>x.id===id); if(!f) return;
   activeProfile=f; saveProfiles();
-  state={income:[],expenses:[],budgets:[],recurringBills:[],billSuggestions:[],debts:[],savings:[],accounts:[],currency:'£',activeTab:'dashboard',selectedAccount:null,selectedDebt:null,viewMonth:new Date().getMonth(),viewYear:new Date().getFullYear(),onboardingComplete:false};
+  state={income:[],expenses:[],budgets:[],recurringBills:[],billSuggestions:[],categoryRules:[],debts:[],savings:[],accounts:[],currency:'£',activeTab:'dashboard',selectedAccount:null,selectedDebt:null,viewMonth:new Date().getMonth(),viewYear:new Date().getFullYear(),onboardingComplete:false};
   loadState(); closeModal('profile-modal');
   document.getElementById('onboarding-overlay')?.classList.remove('ob-visible');
   _scrollTop(); render(); _scrollTop(); requestAnimationFrame(_scrollTop);
@@ -1645,7 +1663,7 @@ function renderProfileUI() {
 }
 
 let state = {
-  income:[], expenses:[], budgets:[], recurringBills:[], billSuggestions:[],
+  income:[], expenses:[], budgets:[], recurringBills:[], billSuggestions:[], categoryRules:[],
   debts:[], savings:[], accounts:[],
   currency:'£', activeTab:'dashboard', selectedAccount:null, selectedDebt:null,
   viewMonth: new Date().getMonth(), viewYear: new Date().getFullYear(),
@@ -1662,7 +1680,7 @@ function loadState() {
     const raw = localStorage.getItem(getStorageKey());
     if (!raw) return;
     const s = JSON.parse(raw);
-    ['income','expenses','budgets','recurringBills','billSuggestions','debts','savings','accounts'].forEach(k => {
+    ['income','expenses','budgets','recurringBills','billSuggestions','categoryRules','debts','savings','accounts'].forEach(k => {
       if (s[k]) state[k] = s[k];
     });
     if (s.currency) state.currency = s.currency;
@@ -1688,8 +1706,8 @@ function loadState() {
 let _saveErrorShown = false;
 function saveState() {
   try {
-    const { income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,lastSeenVersion,taxSettings } = state;
-    localStorage.setItem(getStorageKey(), JSON.stringify({income,expenses,budgets,recurringBills,billSuggestions,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,lastSeenVersion,taxSettings}));
+    const { income,expenses,budgets,recurringBills,billSuggestions,categoryRules,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,lastSeenVersion,taxSettings } = state;
+    localStorage.setItem(getStorageKey(), JSON.stringify({income,expenses,budgets,recurringBills,billSuggestions,categoryRules,debts,savings,accounts,currency,accountOrder,efSuggestionLastMonths,onboardingComplete,seenSpotlights,lastSeenVersion,taxSettings}));
   } catch(e) {
     console.error(e);
     if (!_saveErrorShown) {
@@ -1984,6 +2002,40 @@ function getLast6MonthsForAccounts(ids) {
     const rec=state.recurringBills.filter(b=>b.active!==false&&ids.includes(b.accountId)).reduce((s,b)=>s+billUserShare(b),0);
     return {label:d.toLocaleDateString('en-GB',{month:'short'}),month:mo,year:y,income:inc,expenses:exp,recurring:rec};
   });
+}
+
+// Reconstructs total net worth for the last 6 months by walking backward from
+// the current (live) getTotalWealth(), subtracting each month's net change.
+// Accounts and debts both have dated transaction history to derive a real
+// monthly delta from; savings pots don't (just a live balance, no contribution
+// log), so their current value is implicitly held flat throughout — it's baked
+// into the anchor point and never adjusted going backward. See CLAUDE.md.
+function getNetWorthHistory() {
+  const now=new Date();
+  const monthDefs=Array.from({length:6},(_,i)=>{
+    const d=new Date(now.getFullYear(),now.getMonth()-5+i,1);
+    return {label:d.toLocaleDateString('en-GB',{month:'short'}),month:d.getMonth(),year:d.getFullYear()};
+  });
+  const monthlyDelta=monthDefs.map(({month,year})=>{
+    let delta=0;
+    state.accounts.forEach(a=>{
+      const share=a.isJoint?(Number(a.jointShare)||50)/100:1;
+      const inc=state.income.filter(t=>t.accountId===a.id&&!t.isTransfer).filter(t=>{const dt=parseDate(t.date);return dt.getMonth()===month&&dt.getFullYear()===year;}).reduce((s,t)=>s+Number(t.amount),0);
+      const exp=state.expenses.filter(t=>t.accountId===a.id&&!t.isTransfer).filter(t=>{const dt=parseDate(t.date);return dt.getMonth()===month&&dt.getFullYear()===year;}).reduce((s,t)=>s+Number(t.amount),0);
+      delta+=(inc-exp)*share;
+    });
+    state.debts.forEach(d=>{
+      const inWindow=t=>{const dt=parseDate(t.date);return dt.getMonth()===month&&dt.getFullYear()===year;};
+      const payments=state.expenses.filter(t=>t.debtId===d.id&&t.category==='Payment').filter(inWindow).reduce((s,t)=>s+Number(t.amount),0);
+      const charges=state.expenses.filter(t=>t.debtId===d.id&&!t.isTransfer).filter(inWindow).reduce((s,t)=>s+Number(t.amount),0);
+      delta+=payments-charges;
+    });
+    return delta;
+  });
+  const values=new Array(6);
+  values[5]=getTotalWealth();
+  for(let i=4;i>=0;i--) values[i]=values[i+1]-monthlyDelta[i+1];
+  return monthDefs.map((m,i)=>({label:m.label,month:m.month,year:m.year,value:values[i]}));
 }
 
 function getThisMonthCategoryDataForAccounts(ids) {
@@ -2324,7 +2376,7 @@ function openProfileModal(){renderProfileUI();openModal('profile-modal');}
 function resetProfileData(){
   if(!confirm(`Clear ALL data for "${activeProfile.name}"? Income, expenses, accounts, debts, bills — everything. This cannot be undone.`)) return;
   localStorage.removeItem(getStorageKey());
-  state={income:[],expenses:[],budgets:[],recurringBills:[],billSuggestions:[],debts:[],savings:[],accounts:[],
+  state={income:[],expenses:[],budgets:[],recurringBills:[],billSuggestions:[],categoryRules:[],debts:[],savings:[],accounts:[],
     currency:'£',activeTab:'dashboard',selectedAccount:null,selectedDebt:null,
     viewMonth:new Date().getMonth(),viewYear:new Date().getFullYear(),accountOrder:[],
     onboardingComplete:false,seenSpotlights:{},taxSettings:_defaultTaxSettings()};
@@ -2898,6 +2950,43 @@ function submitBudget(e){
 function deleteBudget(id){const b=state.budgets.find(x=>x.id===id);if(!b||!confirm(`Delete "${b.category}" budget?`))return;state.budgets=state.budgets.filter(x=>x.id!==id);saveState();render();}
 
 // ════════════════════════════════
+// CATEGORY RULES CRUD
+// ════════════════════════════════
+function _populateCategoryRuleList(){
+  document.getElementById('category-rule-category-list').innerHTML=getAllCategories().map(c=>`<option value="${esc(c)}">`).join('');
+}
+function openAddCategoryRule(prefillVendor=''){
+  document.getElementById('category-rule-modal-title').textContent='Add Category Rule';
+  document.getElementById('category-rule-submit-btn').textContent='Add Rule';
+  document.getElementById('category-rule-edit-id').value='';
+  document.getElementById('category-rule-vendor').value=prefillVendor;
+  document.getElementById('category-rule-category').value='';
+  _populateCategoryRuleList();
+  openModal('category-rule-modal');
+  setTimeout(()=>document.getElementById(prefillVendor?'category-rule-category':'category-rule-vendor').focus(),50);
+}
+function openEditCategoryRule(id){
+  const r=state.categoryRules.find(x=>x.id===id);if(!r)return;
+  document.getElementById('category-rule-modal-title').textContent='Edit Category Rule';
+  document.getElementById('category-rule-submit-btn').textContent='Save';
+  document.getElementById('category-rule-edit-id').value=id;
+  document.getElementById('category-rule-vendor').value=r.vendor;
+  document.getElementById('category-rule-category').value=r.category;
+  _populateCategoryRuleList();
+  openModal('category-rule-modal');
+}
+function submitCategoryRule(e){
+  e.preventDefault();
+  const editId=document.getElementById('category-rule-edit-id').value;
+  const vendor=document.getElementById('category-rule-vendor').value.trim().toLowerCase();
+  const category=document.getElementById('category-rule-category').value.trim();
+  if(editId){const r=state.categoryRules.find(x=>x.id===editId);if(r){r.vendor=vendor;r.category=category;}}
+  else{state.categoryRules.push({id:uid(),vendor,category});}
+  saveState();closeModal('category-rule-modal');render();
+}
+function deleteCategoryRule(id){const r=state.categoryRules.find(x=>x.id===id);if(!r||!confirm(`Delete the rule for "${r.vendor}"?`))return;state.categoryRules=state.categoryRules.filter(x=>x.id!==id);saveState();render();}
+
+// ════════════════════════════════
 // DEBT CRUD
 // ════════════════════════════════
 function onDebtTypeChange(){
@@ -3164,8 +3253,8 @@ function deleteAccountFromModal(){
 function _dl(content,name,type){const b=new Blob([content],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);}
 
 function downloadBackup(){
-  const{income,expenses,budgets,recurringBills,debts,savings,accounts,currency}=state;
-  _dl(JSON.stringify({income,expenses,budgets,recurringBills,debts,savings,accounts,currency},null,2),`waypoint-backup-${today()}.json`,'application/json');
+  const{income,expenses,budgets,recurringBills,billSuggestions,categoryRules,debts,savings,accounts,currency}=state;
+  _dl(JSON.stringify({income,expenses,budgets,recurringBills,billSuggestions,categoryRules,debts,savings,accounts,currency},null,2),`waypoint-backup-${today()}.json`,'application/json');
 }
 function restoreBackup(input){
   const file=input.files[0];if(!file)return;
@@ -3174,7 +3263,7 @@ function restoreBackup(input){
   r.onload=e=>{
     try{
       const d=JSON.parse(e.target.result);
-      ['income','expenses','budgets','recurringBills','debts','savings','accounts'].forEach(k=>{if(Array.isArray(d[k]))state[k]=d[k];});
+      ['income','expenses','budgets','recurringBills','billSuggestions','categoryRules','debts','savings','accounts'].forEach(k=>{if(Array.isArray(d[k]))state[k]=d[k];});
       if(d.currency)state.currency=d.currency;
       saveState();closeModal('data-modal');render();
     }catch{alert('Invalid backup file.');}
@@ -3199,6 +3288,10 @@ function exportCSV(){
   state.savings.forEach(p=>L.push(R(p.name,Number(p.balance).toFixed(2),Number(p.monthlyContribution||0).toFixed(2),p.interestRate||0,p.targetAmount||'',projectedBalance(p,12).toFixed(2))));
   L.push('',R('=== ACCOUNTS ==='),R('Name','Type','Balance'));
   state.accounts.forEach(a=>L.push(R(a.name,a.type,Number(a.balance).toFixed(2))));
+  if(state.categoryRules.length){
+    L.push('',R('=== CATEGORY RULES ==='),R('Vendor Contains','Category'));
+    state.categoryRules.forEach(r=>L.push(R(r.vendor,r.category)));
+  }
   _dl(L.join('\n'),`waypoint-export-${today()}.csv`,'text/csv;charset=utf-8;');
 }
 
@@ -3460,9 +3553,28 @@ function buildTxHistory() {
   return map;
 }
 
-function _applyTxHistory(rows, history) {
+// Explicit user-defined vendor→category rules (state.categoryRules) — take
+// priority over both learned history and keyword guessing, since a rule the
+// user created on purpose is more trustworthy than anything inferred.
+function _applyCategoryRules(rows) {
+  if (!state.categoryRules.length) return;
   rows.forEach(r => {
     if (r._matchedBill || r._isTransfer) return;
+    const key = _normDesc(r.desc);
+    if (!key) return;
+    const rule = state.categoryRules.find(rl => key.includes(rl.vendor));
+    if (rule) {
+      r.type = r.type==='income' ? 'income' : 'expense';
+      r.cat = rule.category;
+      r._autoMatched = true;
+      r._matchedCat = rule.category;
+    }
+  });
+}
+
+function _applyTxHistory(rows, history) {
+  rows.forEach(r => {
+    if (r._matchedBill || r._isTransfer || r._autoMatched) return; // _autoMatched here means an explicit category rule already won
     const key = _normDesc(r.desc);
     if (!key) return;
     // Exact match on normalised key
@@ -3564,7 +3676,8 @@ function showPDFReviewModal(rows) {
   // 2. Transfer detection
   _detectTransferPairs(rows);
   rows.forEach(r => { if (r._isTransfer) { r.type='transfer'; r.sel=false; } });
-  // 3. Auto-categorisation from history
+  // 3. Explicit user category rules, then auto-categorisation from history
+  _applyCategoryRules(rows);
   _applyTxHistory(rows, buildTxHistory());
   // 4. Keyword-based category suggestions for still-uncategorised rows
   rows.forEach(r => {
@@ -3693,7 +3806,27 @@ function _checkVendorCategoryMatch(idx) {
   banner.style.display = 'flex';
   banner.innerHTML = `<span style="font-size:12px;flex:1;min-width:200px">Apply <strong>${esc(cat)}</strong> to <strong>${matchIdxs.length}</strong> other transaction${matchIdxs.length>1?'s':''} from "${esc(row.desc)}"?</span>
     <button class="btn btn-lime btn-sm" onclick="_applyVendorCategoryMatch()">Apply to all</button>
+    <button class="btn btn-outline btn-sm" onclick="_createRuleFromVendorMatch()">Always do this</button>
     <button class="btn btn-outline btn-sm" onclick="document.getElementById('pdf-vendor-match-prompt').style.display='none'">Dismiss</button>`;
+}
+
+// One-click version of the Category Rules management flow — the moment a user
+// is fixing up a category during import is exactly when they're most motivated
+// to make it stick permanently, so this skips the separate management modal.
+function _createRuleFromVendorMatch() {
+  const banner = document.getElementById('pdf-vendor-match-prompt');
+  if (!banner) return;
+  const idx = parseInt(banner.dataset.catIdx);
+  const row = _pdfReviewRows[idx];
+  const key = _normDesc(row.desc);
+  const cat = (row.cat||'').trim();
+  if (!key || !cat) return;
+  const existing = state.categoryRules.find(r => r.vendor === key);
+  if (existing) existing.category = cat;
+  else state.categoryRules.push({id: uid(), vendor: key, category: cat});
+  saveState();
+  banner.innerHTML = `<span style="font-size:12px;color:var(--lime)">&#10003; Saved — "${esc(key)}" will always be categorised as ${esc(cat)}.</span>`;
+  setTimeout(() => { banner.style.display = 'none'; }, 2500);
 }
 
 function _applyVendorCategoryMatch() {
@@ -3894,6 +4027,7 @@ async function processBulkImport() {
       });
     }
 
+    _applyCategoryRules(rows);
     _applyTxHistory(rows, historyMap);
     rows.forEach(r => {
       if (r._isTransfer || r.cat || r._matchedBill) return;
@@ -4910,6 +5044,8 @@ function renderDashboard() {
   const catTotal=catData.reduce((s,c)=>s+c.value,0);
   const donut=donutChartSVG(catData,160,18);
   const bars=barChartSVG(getLast6Months().map((mo,i)=>({...mo,onclick:`openChartDrilldown('bar',${i},${mo.month},${mo.year},null)`})));
+  const nwHistory=getNetWorthHistory();
+  const nwLine=lineChartSVG(nwHistory,340,110,'#CAF53A');
   const cfForecast=calcSpendingForecast(_cfDays);
 
   const budgetHtml=state.budgets.length===0?'':`
@@ -5001,6 +5137,12 @@ function renderDashboard() {
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Net Worth Over Time</div>
+      ${nwLine}
+      ${state.savings.length>0?`<p style="font-size:10px;color:var(--muted);margin-top:8px">Savings pot balances shown at today's value throughout — past pot activity isn't tracked.</p>`:''}
     </div>
 
     <div class="card" id="dash-forecast">
@@ -5206,6 +5348,20 @@ function renderExpenses(){
         </div>`;
       }).join('')}
       <div class="total-row" style="color:var(--pink)">Monthly total: ${fmt(recurring)}</div>`}
+    </div>
+    <div class="card">
+      <div class="section-header"><div class="section-title">Category Rules</div><button class="btn btn-outline" onclick="openAddCategoryRule()">+ Add Rule</button></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Vendor text that should always map to a specific category during import — takes priority over both learned history and keyword guessing.</p>
+      ${state.categoryRules.length===0?`<div class="empty"><div class="empty-icon">🏷️</div><p>No category rules yet.</p></div>`:`
+      ${state.categoryRules.map(r=>`<div class="bill-row">
+          <div class="bill-name">${esc(r.vendor)}</div>
+          <div style="color:var(--muted)">→</div>
+          <span class="tag" ${_catColorMap[r.category]?`style="${_catTagStyle(_catColorMap[r.category])}"`:``}>${esc(r.category)}</span>
+          <div class="entry-actions" style="margin-left:auto">
+            <button class="btn btn-outline btn-sm" onclick="openEditCategoryRule('${r.id}')">Edit</button>
+            <button class="btn btn-pink btn-sm" onclick="deleteCategoryRule('${r.id}')">Delete</button>
+          </div>
+        </div>`).join('')}`}
     </div>`;
 }
 
@@ -6388,6 +6544,15 @@ const WHATS_NEW = {
       { icon: '⏰', bg: 'rgba(244,114,182,0.12)', title: 'Multiple 0% debt promotions', desc: 'Track several concurrent interest-free deals per debt, with expiry warnings, a dedicated Debt Detail page, and an extra-payment payoff simulator.' },
       { icon: '📂', bg: 'rgba(96,165,250,0.1)', title: 'Bulk statement import', desc: 'Once you\'ve got 4+ months of history, import every statement at once — Waypoint auto-handles what it recognises and only asks about the rest.' },
       { icon: '🎯', bg: 'rgba(45,212,191,0.1)', title: 'Smarter suggestions', desc: 'Budget and Growth tab suggestions now come with one-click "Create budget" actions, and focus on discretionary spending rather than housing/utilities.' },
+    ]
+  },
+  '1.2.2': {
+    tag: `What's New — v1.2.2`, tagColor: 'var(--lime)',
+    title: 'Net worth history and editable category rules',
+    sub: `A round-up of what's shipped recently:`,
+    points: [
+      { icon: '📈', bg: 'rgba(202,245,58,0.1)', title: 'Net Worth Over Time', desc: 'A new Dashboard chart tracking your combined net worth across the last 6 months, reconstructed from your real account and debt activity.' },
+      { icon: '🏷️', bg: 'rgba(96,165,250,0.1)', title: 'Category Rules', desc: 'Vendor-to-category mappings you control directly from the Expenses tab — always wins over learned history or keyword guesses when importing statements.' },
     ]
   }
 };
