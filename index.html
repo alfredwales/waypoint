@@ -206,13 +206,13 @@
       background: var(--surface);
       border: 2px solid var(--border);
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
+      color: var(--muted);
       cursor: pointer;
       z-index: 45;
       box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-      transition: border-color 0.15s, transform 0.15s;
+      transition: border-color 0.15s, transform 0.15s, color 0.15s;
     }
-    .bug-report-btn:hover { border-color: var(--lime); transform: scale(1.06); }
+    .bug-report-btn:hover { border-color: var(--lime); color: var(--lime); transform: scale(1.06); }
     .bug-nudge {
       position: fixed;
       bottom: 70px;
@@ -1066,7 +1066,7 @@
 <div id="app-version-footnote" class="version-footnote"></div>
 
 <!-- ═══ BUG REPORT WIDGET ═══ -->
-<div class="bug-report-btn" id="bug-report-btn" title="Report a bug" onclick="openBugReport()">🐛</div>
+<div class="bug-report-btn" id="bug-report-btn" title="Report a bug" onclick="openBugReport()"><svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M27.89,17.55l-.65-1.3a2.24,2.24,0,0,0-2-1.25H22.51c-.16-.83-.35-1.59-.55-2.28,0,0,0-.05,0-.08v-.06l2.62-1.75a1,1,0,1,0-1.1-1.66l-1.91,1.27a3.34,3.34,0,0,0-.62-.75A3.25,3.25,0,0,0,21,9a4,4,0,0,0-2.76-3.56L18.72,4H20a1,1,0,0,0,0-2H18a1,1,0,0,0-.95.68L16.27,5,16,5l-.27,0L15,2.68A1,1,0,0,0,14,2H12a1,1,0,0,0,0,2h1.28l.48,1.44A4,4,0,0,0,11,9a3.25,3.25,0,0,0,.08.69,3.34,3.34,0,0,0-.62.75L8.55,9.17a1,1,0,1,0-1.1,1.66l2.62,1.75v.06l0,.08c-.2.69-.39,1.45-.55,2.28H6.78a2.24,2.24,0,0,0-2,1.25l-.65,1.3a1,1,0,0,0,.44,1.34A.93.93,0,0,0,5,19a1,1,0,0,0,.89-.55l.66-1.3A.25.25,0,0,1,6.78,17h2.4a23,23,0,0,0,.87,9.51c.21.66.45,1.32.72,1.95A2.45,2.45,0,0,0,13,30h0a2.39,2.39,0,0,0,2.19-1.49,19.07,19.07,0,0,0,.74-2c0-.05,0-.1.05-.15l.05.15a19.07,19.07,0,0,0,.74,2A2.39,2.39,0,0,0,19,30h0a2.45,2.45,0,0,0,2.25-1.54c.27-.63.51-1.29.72-1.95A23,23,0,0,0,22.82,17h2.4a.25.25,0,0,1,.23.15l.66,1.3A1,1,0,0,0,27,19a.93.93,0,0,0,.45-.11A1,1,0,0,0,27.89,17.55ZM16,10c2.29,0,4,1.06,4,2s-1.71,2-4,2-4-1.06-4-2S13.71,10,16,10Zm0-3a3.12,3.12,0,0,1,2.88,1.47,9.06,9.06,0,0,0-5.76,0A3.12,3.12,0,0,1,16,7Zm4.05,18.91a17.67,17.67,0,0,1-.66,1.76A.47.47,0,0,1,19,28h0a.4.4,0,0,1-.35-.28c-.25-.59-.48-1.2-.68-1.81A18.36,18.36,0,0,1,17,20.23V20a1,1,0,0,0-2,0v.23a18.36,18.36,0,0,1-.95,5.68c-.2.61-.43,1.22-.68,1.81A.4.4,0,0,1,13,28h0a.47.47,0,0,1-.41-.33A17.67,17.67,0,0,1,12,25.91a21.57,21.57,0,0,1-.36-11.17A7.65,7.65,0,0,0,16,16a7.65,7.65,0,0,0,4.41-1.26A21.57,21.57,0,0,1,20.05,25.91Z"/></svg></div>
 <div class="bug-nudge" id="bug-nudge" style="display:none" onclick="openBugReport();hideBugNudge()">Hit a bug? Report it! →</div>
 
 <div class="modal-overlay" id="bug-report-modal">
@@ -7103,8 +7103,8 @@ function _obRestore() {
 // {{platform}}/{{tab}}/{{timestamp}}/{{error_context}} variables, then fill in
 // the three IDs below. Until they're set, reports fall back to a pre-filled
 // mailto: link instead — a report is never silently lost either way.
-const EMAILJS_SERVICE_ID = '';
-const EMAILJS_TEMPLATE_ID = '';
+const EMAILJS_SERVICE_ID = 'service_44ti0as';
+const EMAILJS_TEMPLATE_ID = 'template_rvji28m';
 const EMAILJS_PUBLIC_KEY = '_o1np4LRxKz9QuJxh';
 const BUG_REPORT_EMAIL = 'alfie@aberrationmedia.co.uk';
 const EMAILJS_SDK_URL = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4.4.1/dist/email.min.js';
