@@ -5664,7 +5664,12 @@ function buildGrowthMilestones(surplus,avalanche,totalSavings,efTarget,monthlyEx
 // buildBudgetRecommendations() so "which categories are actually discretionary"
 // is defined in exactly one place.
 const NON_ESSENTIAL_KW=['eating out','restaurant','takeaway','takeaways','coffee','cafe','shopping','clothes','clothing','entertainment','cinema','hobbies','streaming','netflix','spotify','disney','subscription','alcohol','pub','bar','beauty','hair','gambling','dining','fast food','delivery','just eat','deliveroo','uber eats','fashion','amazon','ebay','etsy','gaming'];
-const ESSENTIAL_KW=['rent','mortgage','utilities','electricity','gas','water','grocery','groceries','supermarket','tesco','asda','sainsbury','morrisons','lidl','aldi','insurance','transport','bus','train','tube','fuel','petrol','diesel','medical','pharmacy','health','nhs','council tax','childcare','nursery','school','education','internet','broadband','phone','mobile'];
+// Groceries/supermarkets are deliberately NOT in this list — unlike rent or
+// utilities the amount isn't fixed, so it's worth a budget like any other
+// variable spend. It falls through classifyCat() to 'semi' rather than
+// 'non-essential', so it's still excluded from the "cut this" framing in
+// buildPriorityActions() but is included in buildBudgetRecommendations().
+const ESSENTIAL_KW=['rent','mortgage','utilities','electricity','gas','water','insurance','transport','bus','train','tube','fuel','petrol','diesel','medical','pharmacy','health','nhs','council tax','childcare','nursery','school','education','internet','broadband','phone','mobile'];
 const FINANCIAL_KW=['credit card','card repayment','card payment','credit card payment','loan repayment','loan payment','debt repayment','debt payment','repayment','overdraft','minimum payment','minimum pay','savings transfer','savings deposit','pension','investment','isa','transfer','internal'];
 // Categories whose recurring, subscription-like nature is worth calling out
 // specifically (a subset of NON_ESSENTIAL_KW) when they're consistently overspent.
@@ -7100,7 +7105,7 @@ function _obRestore() {
 // mailto: link instead — a report is never silently lost either way.
 const EMAILJS_SERVICE_ID = '';
 const EMAILJS_TEMPLATE_ID = '';
-const EMAILJS_PUBLIC_KEY = '';
+const EMAILJS_PUBLIC_KEY = '_o1np4LRxKz9QuJxh';
 const BUG_REPORT_EMAIL = 'alfie@aberrationmedia.co.uk';
 const EMAILJS_SDK_URL = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4.4.1/dist/email.min.js';
 const EMAILJS_SDK_INTEGRITY = 'sha384-SALc35EccAf6RzGw4iNsyj7kTPr33K7RoGzYu+7heZhT8s0GZouafRiCg1qy44AS';
