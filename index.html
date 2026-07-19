@@ -200,7 +200,7 @@
     .bug-report-btn {
       position: fixed;
       bottom: 20px;
-      left: 20px; /* left side has no card dock to clear, so it can sit right in the corner */
+      right: 20px;
       width: 42px; height: 42px;
       border-radius: 50%;
       background: var(--surface);
@@ -216,7 +216,7 @@
     .bug-nudge {
       position: fixed;
       bottom: 70px;
-      left: 20px;
+      right: 20px;
       max-width: 200px;
       background: var(--surface2);
       border: 2px solid var(--lime);
@@ -750,8 +750,8 @@
       .card-dock { display: none; }
 
       /* Bug report widget: must sit above the bottom nav bar on mobile */
-      .bug-report-btn { left: 16px; bottom: 74px; }
-      .bug-nudge { left: 12px; bottom: 124px; }
+      .bug-report-btn { right: 16px; bottom: 74px; }
+      .bug-nudge { right: 12px; bottom: 124px; }
 
       /* Main: adjust for header + bottom nav */
       main { padding: 16px 14px 88px; padding-right: 14px; }
