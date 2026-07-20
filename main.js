@@ -231,12 +231,22 @@ function finishInstall(destPath, win) {
       '',
       '  1. Drag Waypoint into Applications',
       '  2. Click Replace when prompted',
-      '  3. Quit this app, then reopen Waypoint from Applications',
+      '  3. Reopen Waypoint from Applications',
+      '',
+      'This app will close automatically once the installer opens.',
     ].join('\n'),
     buttons: ['Open installer', 'Later'],
     defaultId: 0,
   }).then(({ response }) => {
-    if (response === 0) shell.openPath(destPath);
+    if (response !== 0) return;
+    shell.openPath(destPath).then((errorMessage) => {
+      if (errorMessage) {
+        log.error('Failed to open installer:', errorMessage);
+        showManualDownloadDialog('Could not open the installer automatically.');
+        return;
+      }
+      app.quit();
+    });
   });
 }
 
