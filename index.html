@@ -150,11 +150,29 @@
     .dash-grid { margin-bottom: 16px; }
 
     /* ── Fixed card dock (right side) ── */
-    .card-dock {
+    /* Decorative-only twin of .card-dock: carries the gradient all the way to the
+       viewport bottom, behind the real (shorter) hover hitbox, so the bug-report
+       button doesn't sit inside the dock's mouseenter zone but the background
+       still looks continuous. Kept in sync via the .dock-open sibling selector
+       below rather than touching every place that toggles that class in JS. */
+    .card-dock-bg {
       position: fixed;
       right: 0;
       top: 58px;
       bottom: 0;
+      width: 260px;
+      transform: translateX(196px); /* peek 64px */
+      transition: transform 0.4s cubic-bezier(0.34, 1.1, 0.64, 1);
+      z-index: 39;
+      pointer-events: none;
+      background: linear-gradient(to left, rgba(13,13,18,0.98) 20%, rgba(13,13,18,0.92) 80%, transparent 100%);
+    }
+    #card-dock-panel.dock-open ~ .card-dock-bg { transform: translateX(0); }
+    .card-dock {
+      position: fixed;
+      right: 0;
+      top: 58px;
+      bottom: 74px; /* clear of the bug-report button so hovering toward it doesn't pop the dock open */
       width: 260px;
       transform: translateX(196px); /* peek 64px */
       transition: transform 0.4s cubic-bezier(0.34, 1.1, 0.64, 1);
@@ -163,7 +181,6 @@
       flex-direction: column;
       padding: 20px 16px 16px;
       gap: 10px;
-      background: linear-gradient(to left, rgba(13,13,18,0.98) 20%, rgba(13,13,18,0.92) 80%, transparent 100%);
     }
     .card-dock.dock-open { transform: translateX(0); }
     .version-footnote {
@@ -176,11 +193,14 @@
       pointer-events: none;
       z-index: 3;
     }
+    @keyframes toastPopIn {
+      from { opacity: 0; transform: translateX(-50%) scale(0.95) translateY(8px); }
+      to   { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+    }
     .update-progress-toast {
       position: fixed;
       bottom: 20px;
       left: 50%;
-      transform: translateX(-50%);
       background: var(--surface);
       border: 2px solid var(--lime);
       border-radius: 10px;
@@ -191,6 +211,7 @@
       z-index: 200;
       min-width: 220px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      animation: toastPopIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
     .update-progress-toast .upt-label { margin-bottom: 7px; }
     .update-progress-toast .upt-track { width: 100%; height: 6px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
@@ -261,7 +282,7 @@
     /* Main gets right padding so content doesn't hide under dock-peek */
     main { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; padding-right: 80px; }
     @media (max-width: 600px) {
-      .card-dock { display: none; }
+      .card-dock, .card-dock-bg { display: none; }
       main { padding-right: 16px; }
     }
 
@@ -546,6 +567,11 @@
     .pocket-body { animation: pocketIn 0.17s cubic-bezier(0.22, 1, 0.36, 1) both; }
     @keyframes arcDraw { to { stroke-dashoffset: 0; } }
     @keyframes chartIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modalPopIn {
+      from { opacity: 0; transform: scale(0.95) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
 
     /* Toggle */
     .toggle { position: relative; display: inline-block; width: 34px; height: 18px; flex-shrink: 0; }
@@ -661,7 +687,7 @@
 
     /* ── Modal ── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; backdrop-filter: blur(4px); }
-    .modal-overlay.open { display: flex; }
+    .modal-overlay.open { display: flex; animation: overlayIn 0.15s ease both; }
     .modal {
       background: var(--surface); border: 2px solid var(--border); border-radius: var(--r);
       padding: 24px; width: 100%; max-width: 440px;
@@ -669,6 +695,7 @@
       display: flex; flex-direction: column; gap: 14px;
       max-height: 90vh; overflow-y: auto;
     }
+    .modal-overlay.open .modal { animation: modalPopIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
     .modal-wide { max-width: 860px; }
     .modal-title { font-family: 'Unbounded', sans-serif; font-size: 15px; }
     .modal-footer { display: flex; gap: 8px; justify-content: flex-end; padding-top: 2px; }
@@ -747,7 +774,7 @@
       .bottom-nav .nav-btn.active::before { background: var(--lime); }
 
       /* Card dock hidden on mobile */
-      .card-dock { display: none; }
+      .card-dock, .card-dock-bg { display: none; }
 
       /* Bug report widget: must sit above the bottom nav bar on mobile */
       .bug-report-btn { right: 16px; bottom: 74px; }
@@ -1063,6 +1090,7 @@
 
 <main id="main"></main>
 <div class="card-dock" id="card-dock-panel"></div>
+<div class="card-dock-bg"></div>
 <div id="app-version-footnote" class="version-footnote"></div>
 
 <!-- ═══ BUG REPORT WIDGET ═══ -->
@@ -1467,7 +1495,7 @@
       <button class="btn btn-teal btn-sm" onclick="applyImportAccount()">Apply to all</button>
     </div>
     <div id="pdf-debt-bar" style="display:none;align-items:center;gap:8px;padding:10px 12px;background:rgba(244,114,182,0.06);border:1.5px solid rgba(244,114,182,0.2);border-radius:8px;margin-bottom:12px;flex-wrap:wrap">
-      <span style="font-size:12px;font-weight:600">💳 Importing to: <span id="pdf-debt-name" style="color:var(--pink)"></span></span>
+      <span style="font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></svg> Importing to: <span id="pdf-debt-name" style="color:var(--pink)"></span></span>
       <span style="font-size:11px;color:var(--muted)">Mark card payments as "Payment" so they don't count as spending, and interest charges as "Interest" to track them separately.</span>
     </div>
     <div id="pdf-vendor-match-prompt" style="display:none;align-items:center;gap:8px;padding:10px 12px;background:rgba(202,245,58,0.06);border:1.5px solid rgba(202,245,58,0.25);border-radius:8px;margin-bottom:12px;flex-wrap:wrap"></div>
@@ -1501,19 +1529,19 @@
     <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Your statement's imported. Here's what Waypoint just did behind the scenes — and what it'll keep doing on every import from now on.</p>
     <div style="display:flex;flex-direction:column;gap:14px">
       <div class="ob-feature">
-        <div class="ob-feature-icon" style="background:rgba(202,245,58,0.1)">🧠</div>
+        <div class="ob-feature-icon" style="background:rgba(202,245,58,0.1)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5" /><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4" /><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5" /><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77" /><path d="M18 18a4 4 0 0 0 2-7.464" /><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517" /><path d="M6 18a4 4 0 0 1-2-7.464" /><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77" /></svg></div>
         <div><div class="ob-feature-title">Learns your categories</div><div class="ob-feature-desc">Categorise a transaction once, and Waypoint remembers that vendor — future imports from them get categorised automatically.</div></div>
       </div>
       <div class="ob-feature">
-        <div class="ob-feature-icon" style="background:rgba(244,114,182,0.1)">🔁</div>
+        <div class="ob-feature-icon" style="background:rgba(244,114,182,0.1)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></svg></div>
         <div><div class="ob-feature-title">Applies categories in bulk</div><div class="ob-feature-desc">Set a category on one row and, if other transactions from the same vendor appear in this import, you'll be offered to apply it to all of them at once.</div></div>
       </div>
       <div class="ob-feature">
-        <div class="ob-feature-icon" style="background:rgba(45,212,191,0.1)">📅</div>
+        <div class="ob-feature-icon" style="background:rgba(45,212,191,0.1)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></svg></div>
         <div><div class="ob-feature-title">Detects recurring bills</div><div class="ob-feature-desc">Transactions matching a bill you've already set up are automatically excluded, so it's never counted twice.</div></div>
       </div>
       <div class="ob-feature">
-        <div class="ob-feature-icon" style="background:rgba(96,165,250,0.1)">↔</div>
+        <div class="ob-feature-icon" style="background:rgba(96,165,250,0.1)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4" /><path d="M4 7h16" /><path d="m16 21 4-4-4-4" /><path d="M20 17H4" /></svg></div>
         <div><div class="ob-feature-title">Flags internal transfers</div><div class="ob-feature-desc">Money moved between your own accounts is marked as a transfer and left out of your income/expense totals.</div></div>
       </div>
     </div>
@@ -1746,6 +1774,47 @@ function fmtDate(s) { return parseDate(s).toLocaleDateString('en-GB',{day:'numer
 function monthName(m,y) { return new Date(y,m).toLocaleDateString('en-GB',{month:'long',year:'numeric'}); }
 function monthsFromNow(n) { const d=new Date(); d.setMonth(d.getMonth()+Math.round(n)); return d.toLocaleDateString('en-GB',{month:'short',year:'numeric'}); }
 function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+const ICON_PATHS = {
+  'arrow-left-right': '<path d="M8 3 4 7l4 4" /><path d="M4 7h16" /><path d="m16 21 4-4-4-4" /><path d="M20 17H4" />',
+  'ban': '<circle cx="12" cy="12" r="10" /><path d="M4.929 4.929 19.07 19.071" />',
+  'banknote': '<rect width="20" height="12" x="2" y="6" rx="2" /><circle cx="12" cy="12" r="2" /><path d="M6 12h.01M18 12h.01" />',
+  'bar-chart-3': '<path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" />',
+  'brain': '<path d="M12 18V5" /><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4" /><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5" /><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77" /><path d="M18 18a4 4 0 0 0 2-7.464" /><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517" /><path d="M6 18a4 4 0 0 1-2-7.464" /><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77" />',
+  'briefcase': '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /><rect width="20" height="14" x="2" y="6" rx="2" />',
+  'bug': '<path d="M12 20v-9" /><path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z" /><path d="M14.12 3.88 16 2" /><path d="M21 21a4 4 0 0 0-3.81-4" /><path d="M21 5a4 4 0 0 1-3.55 3.97" /><path d="M22 13h-4" /><path d="M3 21a4 4 0 0 1 3.81-4" /><path d="M3 5a4 4 0 0 0 3.55 3.97" /><path d="M6 13H2" /><path d="m8 2 1.88 1.88" /><path d="M9 7.13V6a3 3 0 1 1 6 0v1.13" />',
+  'calculator': '<rect width="16" height="20" x="4" y="2" rx="2" /><line x1="8" x2="16" y1="6" y2="6" /><line x1="16" x2="16" y1="14" y2="18" /><path d="M16 10h.01" /><path d="M12 10h.01" /><path d="M8 10h.01" /><path d="M12 14h.01" /><path d="M8 14h.01" /><path d="M12 18h.01" /><path d="M8 18h.01" />',
+  'calendar': '<path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" />',
+  'clipboard-list': '<rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" />',
+  'compass': '<circle cx="12" cy="12" r="10" /><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" />',
+  'credit-card': '<rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" />',
+  'download': '<path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" />',
+  'flag': '<path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" />',
+  'flame': '<path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4" />',
+  'folder-open': '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />',
+  'landmark': '<path d="M10 18v-7" /><path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z" /><path d="M14 18v-7" /><path d="M18 18v-7" /><path d="M3 22h18" /><path d="M6 18v-7" />',
+  'laptop': '<path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z" /><path d="M20.054 15.987H3.946" />',
+  'link': '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />',
+  'map-pin': '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" />',
+  'octagon-alert': '<path d="M12 16h.01" /><path d="M12 8v4" /><path d="M15.312 2a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586l-4.688-4.688A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2z" />',
+  'party-popper': '<path d="M5.8 11.3 2 22l10.7-3.79" /><path d="M4 3h.01" /><path d="M22 8h.01" /><path d="M15 2h.01" /><path d="M22 20h.01" /><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" /><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17" /><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7" /><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" />',
+  'receipt': '<path d="M12 17V7" /><path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8" /><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z" />',
+  'repeat': '<path d="m17 2 4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="m7 22-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />',
+  'scissors': '<circle cx="6" cy="6" r="3" /><path d="M8.12 8.12 12 12" /><path d="M20 4 8.12 15.88" /><circle cx="6" cy="18" r="3" /><path d="M14.8 14.8 20 20" />',
+  'search': '<path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" />',
+  'shield': '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />',
+  'snowflake': '<path d="m10 20-1.25-2.5L6 18" /><path d="M10 4 8.75 6.5 6 6" /><path d="m14 20 1.25-2.5L18 18" /><path d="m14 4 1.25 2.5L18 6" /><path d="m17 21-3-6h-4" /><path d="m17 3-3 6 1.5 3" /><path d="M2 12h6.5L10 9" /><path d="m20 10-1.5 2 1.5 2" /><path d="M22 12h-6.5L14 15" /><path d="m4 10 1.5 2L4 14" /><path d="m7 21 3-6-1.5-3" /><path d="m7 3 3 6h4" />',
+  'sparkles': '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /><path d="M20 2v4" /><path d="M22 4h-4" /><circle cx="4" cy="20" r="2" />',
+  'tag': '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />',
+  'target': '<circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />',
+  'trending-up': '<path d="M16 7h6v6" /><path d="m22 7-8.5 8.5-5-5L2 17" />',
+  'trending-down': '<path d="M16 17h6v-6" /><path d="m22 17-8.5-8.5-5 5L2 7" />',
+  'triangle-alert': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" />',
+  'trophy': '<path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21.978" /><path d="M14 14.66v1.626a2 2 0 0 0 .976 1.696A5 5 0 0 1 17 21.978" /><path d="M18 9h1.5a1 1 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z" /><path d="M6 9H4.5a1 1 0 0 1 0-5H6" />',
+  'wallet': '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />',
+  'zap': '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" />',
+};
+function icon(name, size) { size = size || 16; return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0">'+(ICON_PATHS[name]||'')+'</svg>'; }
 
 // ════════════════════════════════
 // CHARTS (SVG)
@@ -2535,7 +2604,7 @@ function checkExpenseBillMatch() {
   const bill = amt > 0 ? matchingBill(amt, desc, cat) : null;
   if (bill) {
     warn.style.display = 'block';
-    warn.innerHTML = `⚠ This looks like your <strong>${esc(bill.name)}</strong> recurring bill (${fmt(billUserShare(bill))}). It may already be counted — only add it here if it isn't tracked under recurring bills.`;
+    warn.innerHTML = `${icon('triangle-alert',12)} This looks like your <strong>${esc(bill.name)}</strong> recurring bill (${fmt(billUserShare(bill))}). It may already be counted — only add it here if it isn't tracked under recurring bills.`;
   } else {
     warn.style.display = 'none';
   }
@@ -3735,7 +3804,7 @@ function showPDFReviewModal(rows) {
       r._matchedBill ? 'bill-match' : '',
       !r.sel ? 'skipped' : '',
     ].filter(Boolean).join(' ');
-    const badge = r._matchedBill   ? `<div class="bill-match-badge" style="margin-top:3px">⚠ Recurring: ${esc(r._matchedBill)}</div>`
+    const badge = r._matchedBill   ? `<div class="bill-match-badge" style="margin-top:3px;display:inline-flex;align-items:center;gap:4px">${icon('triangle-alert',11)} Recurring: ${esc(r._matchedBill)}</div>`
                 : isTransfer        ? `<div class="bill-match-badge" style="margin-top:3px;color:var(--muted)">${r._transferMatchNote||'↔ Possible transfer'}</div>`
                 : r._autoMatched    ? `<div class="import-auto-badge" style="margin-top:3px">✓ Previously: ${esc(r._matchedCat||r.cat)}</div>`
                 : r._suggested      ? `<div class="import-suggest-badge" style="margin-top:3px">? Likely: ${esc(r._matchedCat||r.cat)} — confirm</div>`
@@ -4252,32 +4321,32 @@ function generateDashboardInsights() {
   state.accounts.forEach(a=>{
     if(!a.hasOverdraft||Number(a.balance)>=0) return;
     const pct=Math.min(100,(Math.abs(a.balance)/(a.overdraftLimit||1))*100);
-    if(pct>50) insights.push({type:'danger',icon:'⚠️',title:`${esc(a.name)} overdrawn`,body:`${fmt(Math.abs(a.balance))} overdrawn (${pct.toFixed(0)}% of ${fmt(a.overdraftLimit)} limit). Monthly interest: ${fmt(Math.abs(a.balance)*(a.overdraftAPR||0)/100/12)}.`});
+    if(pct>50) insights.push({type:'danger',icon:icon('triangle-alert'),title:`${esc(a.name)} overdrawn`,body:`${fmt(Math.abs(a.balance))} overdrawn (${pct.toFixed(0)}% of ${fmt(a.overdraftLimit)} limit). Monthly interest: ${fmt(Math.abs(a.balance)*(a.overdraftAPR||0)/100/12)}.`});
   });
 
   // Low runway
   const runway=getRunway();
-  if(runway!==null&&runway<2) insights.push({type:'danger',icon:'📉',title:'Low runway',body:runway<=0?'Outgoings exceed logged income — check for missing income or review expenses.':`Only ${runway.toFixed(1)} months of runway at current burn rate.`});
+  if(runway!==null&&runway<2) insights.push({type:'danger',icon:icon('trending-down'),title:'Low runway',body:runway<=0?'Outgoings exceed logged income — check for missing income or review expenses.':`Only ${runway.toFixed(1)} months of runway at current burn rate.`});
 
   // Budget overruns
   state.budgets.forEach(b=>{
     const spent=getCategoryMonthSpend(b.category,m,y);
-    if(spent>b.limit) insights.push({type:'warn',icon:'🎯',title:`${esc(b.category)} over budget`,body:`Spent ${fmt(spent)} vs ${fmt(b.limit)} limit — ${fmt(spent-b.limit)} over.`});
+    if(spent>b.limit) insights.push({type:'warn',icon:icon('target'),title:`${esc(b.category)} over budget`,body:`Spent ${fmt(spent)} vs ${fmt(b.limit)} limit — ${fmt(spent-b.limit)} over.`});
   });
 
   // Bills due in next 7 days
   const soon=state.recurringBills.filter(b=>b.active!==false&&b.dayOfMonth>today&&b.dayOfMonth<=today+7);
-  if(soon.length) insights.push({type:'info',icon:'📅',title:`${soon.length} bill${soon.length>1?'s':''} due this week`,body:soon.map(b=>`${esc(b.name)} ${fmt(billUserShare(b))} (day ${b.dayOfMonth})`).join(' · ')});
+  if(soon.length) insights.push({type:'info',icon:icon('calendar'),title:`${soon.length} bill${soon.length>1?'s':''} due this week`,body:soon.map(b=>`${esc(b.name)} ${fmt(billUserShare(b))} (day ${b.dayOfMonth})`).join(' · ')});
 
   // Savings target close
   state.savings.filter(p=>p.targetAmount>0).forEach(p=>{
     const pct=Number(p.balance)/Number(p.targetAmount)*100;
-    if(pct>=85&&pct<100) insights.push({type:'pos',icon:'🎯',title:`${esc(p.name)} almost reached!`,body:`${pct.toFixed(0)}% of ${fmt(p.targetAmount)} target — just ${fmt(Number(p.targetAmount)-Number(p.balance))} to go.`});
+    if(pct>=85&&pct<100) insights.push({type:'pos',icon:icon('target'),title:`${esc(p.name)} almost reached!`,body:`${pct.toFixed(0)}% of ${fmt(p.targetAmount)} target — just ${fmt(Number(p.targetAmount)-Number(p.balance))} to go.`});
   });
 
   // Good month surplus
   const mIn=getMonthIncome(m,y),mOut=getMonthExpenses(m,y)+getMonthRecurringNet(m,y),surplus=mIn-mOut;
-  if(mIn>0&&surplus>0&&surplus/mIn>0.25) insights.push({type:'pos',icon:'✨',title:'Strong month',body:`Keeping ${((surplus/mIn)*100).toFixed(0)}% of income this month — ${fmt(surplus)} surplus.`});
+  if(mIn>0&&surplus>0&&surplus/mIn>0.25) insights.push({type:'pos',icon:icon('sparkles'),title:'Strong month',body:`Keeping ${((surplus/mIn)*100).toFixed(0)}% of income this month — ${fmt(surplus)} surplus.`});
 
   return insights;
 }
@@ -4747,11 +4816,11 @@ function renderAccountDetail(account) {
         <div><div class="ds-meta-label">Set ${fmtDate(account.balanceSetAt)}</div><div class="ds-meta-value">${fmt(account.balance)}</div></div>
         ${proj.confirmedIncome>0?`<div><div class="ds-meta-label">Confirmed in</div><div class="ds-meta-value pos">+${fmt(proj.confirmedIncome)}</div></div>`:''}
         ${proj.confirmedExpenses>0?`<div><div class="ds-meta-label">Confirmed out</div><div class="ds-meta-value neg">−${fmt(proj.confirmedExpenses)}</div></div>`:''}
-        ${proj.unconfirmedTotal>0?`<div><div class="ds-meta-label">Unconfirmed bills ⚠</div><div class="ds-meta-value neg">−${fmt(proj.unconfirmedTotal)}</div></div>`:''}
+        ${proj.unconfirmedTotal>0?`<div><div class="ds-meta-label">Unconfirmed bills ${icon('triangle-alert',10)}</div><div class="ds-meta-value neg">−${fmt(proj.unconfirmedTotal)}</div></div>`:''}
         <div><div class="ds-meta-label">Projected now</div><div class="ds-meta-value ${proj.projectedNow>=0?'pos':'neg'}" style="font-size:16px">${proj.projectedNow<0?'−':''}${fmt(Math.abs(proj.projectedNow))}</div></div>
       </div>
       ${proj.pastUnconfirmed.length?`
-        <div style="font-size:10px;font-weight:700;color:var(--orange);margin-bottom:6px">⚠ Unconfirmed — upload a statement to confirm</div>
+        <div style="font-size:10px;font-weight:700;color:var(--orange);margin-bottom:6px;display:flex;align-items:center;gap:5px">${icon('triangle-alert',12)} Unconfirmed — upload a statement to confirm</div>
         ${proj.pastUnconfirmed.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)"><span>${esc(p.name)} <span style="color:var(--muted);font-size:11px">${fmtDate(p.date)}</span></span><span style="color:var(--pink);font-weight:600">−${fmt(p.amount)}</span></div>`).join('')}
       `:''}
       ${proj.upcomingBills.length?`
@@ -4828,7 +4897,7 @@ function renderAccountDetail(account) {
       </div>
 
       ${recent.length===0&&assignedBills.length===0?`
-        <div class="empty"><div class="empty-icon">📋</div><p>No transactions assigned to this account yet.<br>Tick entries on the Income or Expenses tab to assign them here.</p></div>
+        <div class="empty"><div class="empty-icon">${icon('clipboard-list',28)}</div><p>No transactions assigned to this account yet.<br>Tick entries on the Income or Expenses tab to assign them here.</p></div>
       `:`
       ${assignedBills.length?`
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Recurring Bills</div>
@@ -5153,7 +5222,7 @@ function renderDashboard() {
         </div>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-bottom:12px">${cfForecast.hasVarHistory?'Projected from your bills and typical spending patterns.':'Based on your scheduled bills — add more months of expenses to see your full spending forecast.'}</p>
-      ${state.accounts.length===0&&state.recurringBills.length===0?`<div class="empty"><div class="empty-icon">📊</div><p>Add accounts or bills to see your forecast.</p></div>`:`
+      ${state.accounts.length===0&&state.recurringBills.length===0?`<div class="empty"><div class="empty-icon">${icon('bar-chart-3',28)}</div><p>Add accounts or bills to see your forecast.</p></div>`:`
       ${spendingForecastSVG(cfForecast.billsData, cfForecast.totalData)}
       ${(()=>{
         const dueWeek=cfForecast.billEvents.filter(p=>p.d>0&&p.d<=7&&p.events.length);
@@ -5183,7 +5252,7 @@ function renderDashboard() {
           <button class="btn btn-pink btn-sm" onclick="goToTab('expenses');openAddExpense()">+ Expense</button>
         </div>
       </div>
-      ${recent.length===0?`<div class="empty"><div class="empty-icon">📊</div><p>Nothing logged yet.</p></div>`:`
+      ${recent.length===0?`<div class="empty"><div class="empty-icon">${icon('bar-chart-3',28)}</div><p>Nothing logged yet.</p></div>`:`
       <div class="entry-list">
         ${recent.map(t=>`<div class="entry-item">
           <div class="entry-date">${fmtDate(t.date)}</div>
@@ -5212,7 +5281,7 @@ function renderIncome(){
     <div style="margin-bottom:12px">
       <input type="search" placeholder="Search income…" value="${esc(_incomeSearch)}" oninput="_incomeSearch=this.value;render()" style="width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
     </div>
-    ${sorted.length===0?`<div class="empty"><div class="empty-icon">💸</div><p>${q?'No income matches your search.':'No income recorded yet.'}</p></div>`:`
+    ${sorted.length===0?`<div class="empty"><div class="empty-icon">${icon('banknote',28)}</div><p>${q?'No income matches your search.':'No income recorded yet.'}</p></div>`:`
     <div id="tx-batch-bar" class="batch-bar" style="display:${_selectedTxIds.size?'flex':'none'}">
       <span id="tx-batch-count">${_selectedTxIds.size} selected</span>
       <select id="tx-batch-account-sel" style="flex:1;max-width:200px"><option value="">Assign to account…</option>${acctOpts}</select>
@@ -5270,7 +5339,7 @@ function renderExpenses(){
       <div style="margin-bottom:12px">
         <input type="search" placeholder="Search expenses…" value="${esc(_expenseSearch)}" oninput="_expenseSearch=this.value;render()" style="width:100%;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
       </div>
-      ${filtered.length===0?`<div class="empty"><div class="empty-icon">🧾</div><p>${q?'No expenses match your search.':`No expenses in ${monthName(m,y)}.`}</p></div>`:`
+      ${filtered.length===0?`<div class="empty"><div class="empty-icon">${icon('receipt',28)}</div><p>${q?'No expenses match your search.':`No expenses in ${monthName(m,y)}.`}</p></div>`:`
       <div id="tx-batch-bar" class="batch-bar" style="display:${_selectedTxIds.size?'flex':'none'}">
         <span id="tx-batch-count">${_selectedTxIds.size} selected</span>
         <select id="tx-batch-account-sel" style="flex:1;max-width:200px"><option value="">Assign to account…</option>${state.accounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select>
@@ -5328,7 +5397,7 @@ function renderExpenses(){
     </div>`:''}
     <div class="card">
       <div class="section-header"><div class="section-title">Recurring Bills</div><button class="btn btn-outline" onclick="openAddBill()">+ Add Bill</button></div>
-      ${state.recurringBills.length===0?`<div class="empty"><div class="empty-icon">🔁</div><p>No recurring bills yet.</p></div>`:`
+      ${state.recurringBills.length===0?`<div class="empty"><div class="empty-icon">${icon('repeat',28)}</div><p>No recurring bills yet.</p></div>`:`
       ${state.recurringBills.map(b=>{
         const share=billUserShare(b);
         const pct=_billSplitPct(b);
@@ -5352,7 +5421,7 @@ function renderExpenses(){
     <div class="card">
       <div class="section-header"><div class="section-title">Category Rules</div><button class="btn btn-outline" onclick="openAddCategoryRule()">+ Add Rule</button></div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Vendor text that should always map to a specific category during import — takes priority over both learned history and keyword guessing.</p>
-      ${state.categoryRules.length===0?`<div class="empty"><div class="empty-icon">🏷️</div><p>No category rules yet.</p></div>`:`
+      ${state.categoryRules.length===0?`<div class="empty"><div class="empty-icon">${icon('tag',28)}</div><p>No category rules yet.</p></div>`:`
       ${state.categoryRules.map(r=>`<div class="bill-row">
           <div class="bill-name">${esc(r.vendor)}</div>
           <div style="color:var(--muted)">→</div>
@@ -5372,7 +5441,7 @@ function renderBudget(){
   return `<div class="card">
     <div class="section-header"><div class="section-title">Budget Categories</div><button class="btn btn-lime" onclick="openAddBudget()">+ Add Category</button></div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Progress shows variable spending in ${monthName(m,y)}.</p>
-    ${state.budgets.length===0?`<div class="empty"><div class="empty-icon">🎯</div><p>No budget categories yet.</p></div>`:`
+    ${state.budgets.length===0?`<div class="empty"><div class="empty-icon">${icon('target',28)}</div><p>No budget categories yet.</p></div>`:`
     ${state.budgets.map(b=>{
       const spent=getCategoryMonthSpend(b.category,m,y),rem=b.limit-spent;
       const pct=b.limit>0?Math.min((spent/b.limit)*100,100):0,cls=pct>=100?'over':pct>=80?'warn':'ok';
@@ -5478,7 +5547,7 @@ function renderDebtDetail(debt) {
         <div class="section-title">Transactions</div>
       </div>
       ${recent.length===0?`
-        <div class="empty"><div class="empty-icon">📋</div><p>No statement transactions imported yet.<br>Upload a statement to see spending and interest here.</p></div>
+        <div class="empty"><div class="empty-icon">${icon('clipboard-list',28)}</div><p>No statement transactions imported yet.<br>Upload a statement to see spending and interest here.</p></div>
       `:`
       <div class="entry-list">
         ${recent.map(t=>{
@@ -5541,7 +5610,7 @@ function renderDebt(){
     </div>`:''}
     <div class="card">
       <div class="section-header"><div class="section-title">Debts</div><button class="btn btn-pink" onclick="openAddDebt()">+ Add Debt</button></div>
-      ${state.debts.length===0?`<div class="empty"><div class="empty-icon">💳</div><p>No debts tracked.</p></div>`:`
+      ${state.debts.length===0?`<div class="empty"><div class="empty-icon">${icon('credit-card',28)}</div><p>No debts tracked.</p></div>`:`
       ${state.debts.map(d=>{
         const min=calcMinPayment(d),mo=calcPayoffMonths(d),int=calcTotalInterest(d);
         const chargeable=getChargeableBal(d);
@@ -5619,7 +5688,7 @@ function savPotRow(p) {
   return `<div class="ds-row">
     <div class="ds-top"><div class="ds-name">${esc(p.name)}</div>${p.interestRate>0?`<span class="type-badge tb-savings">${p.interestRate}% AER</span>`:''}
       <div class="ds-actions"><button class="btn btn-outline btn-sm" onclick="openEditSavings('${p.id}')">Edit</button><button class="btn btn-pink btn-sm" onclick="deleteSavings('${p.id}')">Delete</button></div></div>
-    ${linkedAccount?`<div style="font-size:10px;color:var(--muted);margin-bottom:6px">🔗 Linked to <strong style="color:var(--text)">${esc(linkedAccount.name)}</strong></div>`:''}
+    ${linkedAccount?`<div style="font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:4px">${icon('link',11)} Linked to <strong style="color:var(--text)">${esc(linkedAccount.name)}</strong></div>`:''}
     ${p.targetAmount?`<div style="margin-bottom:8px"><div class="progress-bar"><div class="progress-fill ok" style="width:${Math.min((Number(p.balance)/Number(p.targetAmount))*100,100)}%"></div></div><div style="font-size:10px;color:var(--muted);margin-top:4px">${fmt(p.balance)} of ${fmt(p.targetAmount)}</div></div>`:''}
     <div class="ds-bottom">
       <div><div class="ds-meta-label">Balance</div><div class="ds-meta-value pos">${fmt(p.balance)}</div></div>
@@ -5746,23 +5815,23 @@ function buildGrowthMilestones(surplus,avalanche,totalSavings,efTarget,monthlyEx
       const efAlloc=surplus*0.5;
       const efMonths=Math.ceil(efGap/efAlloc);
       if(efMonths<600) milestones.push({month:efMonths,type:'emergency',color:'blue',
-        icon:'🛡️',title:'Emergency Fund Complete',
+        icon:icon('shield'),title:'Emergency Fund Complete',
         desc:`${fmt(efTarget)} saved — 3 months of expenses covered and ready for the unexpected`});
     }
   } else if(efTarget>0){
     milestones.push({month:0,type:'emergency',color:'blue',
-      icon:'🛡️',title:'Emergency Fund ✓ Already Secured',
+      icon:icon('shield'),title:'Emergency Fund ✓ Already Secured',
       desc:`${fmt(totalSavings)} saved — you have ${(totalSavings/(efTarget/3)).toFixed(1)} months of expenses covered`});
   }
   // Debt payoffs
   avalanche.forEach(a=>milestones.push({month:a.payoffMonth,type:'debt',color:'pink',
-    icon:'💳',title:`${a.name} Paid Off`,
+    icon:icon('credit-card'),title:`${a.name} Paid Off`,
     desc:`${a.apr>0?a.apr+'% APR eliminated — ':''}Freed-up payments now redirect to savings & wealth building`}));
   // All debts clear
   if(avalanche.length>1){
     const last=Math.max(...avalanche.map(a=>a.payoffMonth));
     milestones.push({month:last+1,type:'freedom',color:'lime',
-      icon:'🎉',title:'Completely Debt Free',
+      icon:icon('party-popper'),title:'Completely Debt Free',
       desc:'Every debt payment you were making can now go straight into building wealth'});
   }
   // Savings pots hitting targets
@@ -5770,7 +5839,7 @@ function buildGrowthMilestones(surplus,avalanche,totalSavings,efTarget,monthlyEx
     if(!p.targetAmount||Number(p.balance)>=Number(p.targetAmount)) return;
     const mo=monthsToTarget(p);
     if(mo>0&&mo<600) milestones.push({month:mo,type:'savings',color:'teal',
-      icon:'🏆',title:`${p.name} Goal Reached`,
+      icon:icon('trophy'),title:`${p.name} Goal Reached`,
       desc:`${fmt(p.targetAmount)} target hit`});
   });
   // Savings accounts with targets
@@ -5778,7 +5847,7 @@ function buildGrowthMilestones(surplus,avalanche,totalSavings,efTarget,monthlyEx
     if(Number(a.balance)>=Number(a.targetAmount)) return;
     const mo=monthsToTarget({balance:a.balance,interestRate:a.interestRate||0,monthlyContribution:a.monthlyContrib||0,targetAmount:a.targetAmount});
     if(mo>0&&mo<600) milestones.push({month:mo,type:'savings',color:'teal',
-      icon:'🏆',title:`${a.name} Target Reached`,
+      icon:icon('trophy'),title:`${a.name} Target Reached`,
       desc:`${fmt(a.targetAmount)} goal achieved`});
   });
   // Start investing milestone
@@ -5789,7 +5858,7 @@ function buildGrowthMilestones(surplus,avalanche,totalSavings,efTarget,monthlyEx
   const hasInvest=state.accounts.some(a=>a.type==='invest');
   if(!(hasISA&&hasInvest)){
     milestones.push({month:investMonth,type:'invest',color:'lime',
-      icon:'📈',title:hasISA?'Scale Up Investments':'Open a Stocks & Shares ISA',
+      icon:icon('trending-up'),title:hasISA?'Scale Up Investments':'Open a Stocks & Shares ISA',
       desc:`Emergency fund secured + debt cleared — compound interest now works for you. Time in market is everything`});
   }
   // FIRE endpoint milestone
@@ -5799,18 +5868,18 @@ function buildGrowthMilestones(surplus,avalanche,totalSavings,efTarget,monthlyEx
     if (fiGap > 0) {
       const fiMo = Math.ceil(fiGap / surplus);
       if (fiMo < 600) milestones.push({month: fiMo, type:'fire', color:'lime',
-        icon:'🔥', title:'Financial Independence',
+        icon:icon('flame'), title:'Financial Independence',
         desc:`${fmt(Math.round(fiNum/1000)*1000)} portfolio reached — 4% rule covers your expenses indefinitely`});
     } else {
       milestones.push({month:0, type:'fire', color:'lime',
-        icon:'🔥', title:'FI Number Already Hit',
+        icon:icon('flame'), title:'FI Number Already Hit',
         desc:`Portfolio covers 25× annual expenses — you have the option to retire now`});
     }
   }
   // Crisis "back to surplus" marker
   if (stratKey === 'crisis') {
     milestones.push({month:0, type:'crisis', color:'pink',
-      icon:'🚨', title:'Currently: Monthly Deficit',
+      icon:icon('octagon-alert'), title:'Currently: Monthly Deficit',
       desc:`Spending exceeds income — closing this gap is step one before any other goal`});
   }
   return milestones.sort((a,b)=>a.month-b.month);
@@ -5863,17 +5932,17 @@ function buildPriorityActions(surplus,avgIn,monthlyExpense,totalDebt,totalSaving
 
   // 1. Budget overruns (urgent)
   const overBudget=state.budgets.filter(b=>getCategoryMonthSpend(b.category,m,y)>b.limit);
-  if(overBudget.length) actions.push({priority:1,color:'orange',icon:'🚨',
+  if(overBudget.length) actions.push({priority:1,color:'orange',icon:icon('octagon-alert'),
     title:`${overBudget.length} Budget${overBudget.length>1?'s':''} Over Limit This Month`,
     desc:overBudget.map(b=>`${b.category}: spending ${fmt(getCategoryMonthSpend(b.category,m,y))} vs ${fmt(b.limit)} limit (${fmt(getCategoryMonthSpend(b.category,m,y)-b.limit)} over)`).join(' · ')});
 
   // 2. Spending exceeds income
-  if(surplus<0) actions.push({priority:2,color:'pink',icon:'⚠️',
+  if(surplus<0) actions.push({priority:2,color:'pink',icon:icon('triangle-alert'),
     title:'Spending Exceeds Income',
     desc:`Monthly shortfall of ${fmt(Math.abs(surplus))}. This compounds fast — you're going backwards. Target the biggest non-essential categories below to close the gap.`});
 
   // 3. Emergency fund
-  if(efCoverage<1) actions.push({priority:surplus<0?2.5:3,color:'blue',icon:'🛡️',
+  if(efCoverage<1) actions.push({priority:surplus<0?2.5:3,color:'blue',icon:icon('shield'),
     title:'Build Your Emergency Fund',
     desc:`You have ${(efCoverage*3).toFixed(1)} months covered — target is 3 months (${fmt(efTarget)}).${surplus>0?' Automate '+fmt(Math.min(surplus*0.5,efTarget-totalSavings))+'/month into a dedicated savings account.':' Reduce outgoings to free up cash for this first.'}`});
 
@@ -5894,7 +5963,7 @@ function buildPriorityActions(surplus,avgIn,monthlyExpense,totalDebt,totalSaving
         :Math.ceil(avg*1.05/5)*5;
       actions.push({
         priority:4+i*0.1,color:isHigh?'pink':'orange',
-        icon:isHigh?'✂️':'📊',
+        icon:isHigh?icon('scissors'):icon('bar-chart-3'),
         cat,
         title:isHigh
           ?`Cut ${cat} — ${fmt(avg)}/month (${pctOfIncome.toFixed(0)}% of income)`
@@ -5911,19 +5980,19 @@ function buildPriorityActions(surplus,avgIn,monthlyExpense,totalDebt,totalSaving
     const top=[...state.debts].sort((a,b)=>Number(b.apr)-Number(a.apr))[0];
     const extra=Math.max(0,surplus-(efCoverage<1?surplus*0.5:0));
     const monthlyInterest=Number(top.balance)*Number(top.apr)/100/12;
-    actions.push({priority:5,color:'pink',icon:'💳',
+    actions.push({priority:5,color:'pink',icon:icon('credit-card'),
       title:`Hit ${top.name} Hard (${top.apr}% APR)`,
       desc:`This debt costs ${fmt(monthlyInterest)}/month in interest alone. Pay minimums on all others, throw ${extra>0?fmt(extra)+'/month ':'every spare pound '}here first. Avalanche method saves the most interest overall.`});
   }
 
   // 6. Savings rate
-  if(surplus>0&&savRate<0.1) actions.push({priority:6,color:'teal',icon:'📈',
+  if(surplus>0&&savRate<0.1) actions.push({priority:6,color:'teal',icon:icon('trending-up'),
     title:'Savings Rate Below 10%',
     desc:`Currently ${(savRate*100).toFixed(0)}% — target 10%+ minimum, 20% ideal. Automating ${fmt(Math.max(0,avgIn*0.1-surplus))}/month more into savings now creates a habit that compounds for decades.`});
 
   // 7. ISA opportunity
   if(!state.accounts.some(a=>a.type==='isa')&&surplus>0&&efCoverage>=0.8&&totalDebt===0)
-    actions.push({priority:7,color:'lime',icon:'🏦',
+    actions.push({priority:7,color:'lime',icon:icon('landmark'),
       title:'Open a Stocks & Shares ISA',
       desc:`No ISA active. With ${fmt(surplus)}/month surplus and your foundation solid, a Stocks & Shares ISA gives you tax-free growth. £200/month at 8% avg return = approx ${fmt(Math.round(200*((Math.pow(1+0.08/12,120)-1)/(0.08/12))))} in 10 years.`});
 
@@ -6135,7 +6204,7 @@ function _calcDataMonths() {
 
 function renderTimeline() {
   const hasData=state.income.length>0||state.expenses.length>0||state.accounts.length>0;
-  if(!hasData) return `<div class="card"><div class="empty"><div class="empty-icon">📈</div>
+  if(!hasData) return `<div class="card"><div class="empty"><div class="empty-icon">${icon('trending-up',28)}</div>
     <p style="font-weight:700;margin-bottom:8px">No data yet</p>
     <p>Upload a bank statement on the Income or Expenses tab to unlock your growth plan.</p>
     <p style="color:var(--muted);font-size:11px;margin-top:8px">We recommend at least 3 months of statements for accurate suggestions.</p>
@@ -6192,7 +6261,7 @@ function renderTimeline() {
           <div style="font-size:10px;color:var(--muted);margin-top:2px">Health: ${score}/100</div>
         </div>
         <div class="htl-stem" style="background:rgba(202,245,58,0.4)"></div>
-        <div class="htl-dot htl-now-pulse" style="background:rgba(202,245,58,0.2);border-color:#CAF53A;font-size:14px">📍</div>
+        <div class="htl-dot htl-now-pulse" style="background:rgba(202,245,58,0.2);border-color:#CAF53A;font-size:14px">${icon('map-pin',13)}</div>
       </div>`;
     } else {
       const rgb=_accentRGB(node.color),hex=_accentHex(node.color);
@@ -6212,7 +6281,7 @@ function renderTimeline() {
 
   return `
     ${dataMonths<3?`<div style="background:rgba(96,165,250,0.08);border:2px solid rgba(96,165,250,0.25);border-radius:var(--r);padding:12px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:center">
-      <div style="font-size:20px">📂</div>
+      <div style="font-size:20px">${icon('folder-open',20)}</div>
       <div>
         <div style="font-size:12px;font-weight:700;color:var(--blue)">Based on ${dataMonths} month${dataMonths!==1?'s':''} of data${dataMonths===0?' — upload statements to unlock suggestions':''}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">${dataMonths<3?`Upload ${3-dataMonths} more month${3-dataMonths!==1?'s':''} of statements for trend-based analysis and better personalised suggestions. Go to Income or Expenses tab → Import Statement.`:''}</div>
@@ -6275,7 +6344,7 @@ function renderTimeline() {
 
     <div id="growth-timeline" class="card" style="margin-bottom:16px">
       <div class="card-title">Road to Financial Freedom <span style="font-size:10px;font-weight:400;color:var(--muted)">· scroll →</span></div>
-      ${future.length||achieved.length?htlHtml:`<div class="empty"><div class="empty-icon">🏁</div><p>Add income, debts, and savings goals to build your personal timeline.</p></div>`}
+      ${future.length||achieved.length?htlHtml:`<div class="empty"><div class="empty-icon">${icon('flag',28)}</div><p>Add income, debts, and savings goals to build your personal timeline.</p></div>`}
     </div>
 
     ${actions.length?`
@@ -6361,7 +6430,7 @@ function renderSavings(){
       ${savAccts.map(acctRow).join('')}
       ${isas.map(acctRow).join('')}
       ${state.savings.map(savPotRow).join('')}
-      ${(!savAccts.length&&!isas.length&&!state.savings.length)?`<div class="empty"><div class="empty-icon">🏦</div><p>No savings accounts or pots yet.</p></div>`:''}
+      ${(!savAccts.length&&!isas.length&&!state.savings.length)?`<div class="empty"><div class="empty-icon">${icon('landmark',28)}</div><p>No savings accounts or pots yet.</p></div>`:''}
       ${(savAccts.length||isas.length||state.savings.length)?`<div class="total-row" style="color:var(--teal)">Total: ${fmt(totalSavAccts+totalS)}</div>`:''}
     </div>`;
 
@@ -6377,7 +6446,7 @@ function renderSavings(){
       <div class="stat-card"><div class="stat-label">Account Balances</div><div class="stat-val ${totalA>=0?'pos':'neg'}">${totalA<0?'−':''}${fmt(Math.abs(totalA))}</div></div>
       ${totalS>0?`<div class="stat-card"><div class="stat-label">Savings Pots</div><div class="stat-val pos">${fmt(totalS)}</div></div>`:''}
     </div>`:''}
-    ${state.accounts.length===0&&!state.savings.length?`<div class="card"><div class="empty"><div class="empty-icon">🏦</div><p>Add your first account to get started.</p></div><div style="text-align:center;padding-bottom:12px"><button class="btn btn-lime" onclick="openAddAccount()">+ Add Account</button></div></div>`:''}
+    ${state.accounts.length===0&&!state.savings.length?`<div class="card"><div class="empty"><div class="empty-icon">${icon('landmark',28)}</div><p>Add your first account to get started.</p></div><div style="text-align:center;padding-bottom:12px"><button class="btn btn-lime" onclick="openAddAccount()">+ Add Account</button></div></div>`:''}
     ${currentSection}
     ${businessSection}
     ${savingsSection}
@@ -6394,7 +6463,7 @@ function renderTaxSection(account) {
   const s = state.taxSettings;
   return `
     <div class="card">
-      <div class="card-title">🧾 Tax Estimate (${est.range.label})</div>
+      <div class="card-title" style="display:flex;align-items:center;gap:6px">${icon('receipt',16)} Tax Estimate (${est.range.label})</div>
       <div class="stat-grid">
         <div class="stat-card"><div class="stat-label">Business Income</div><div class="stat-val pos">${fmt(est.income)}</div><div class="stat-sub">${est.range.label}</div></div>
         <div class="stat-card"><div class="stat-label">Estimated Tax + NI</div><div class="stat-val neg">${fmt(est.total)}</div><div class="stat-sub">rough estimate</div></div>
@@ -6402,7 +6471,7 @@ function renderTaxSection(account) {
       </div>
 
       <div style="background:rgba(251,146,60,0.08);border:2px solid rgba(251,146,60,0.25);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--muted)">
-        <strong style="color:var(--orange)">⚠ Rough estimate, not tax advice.</strong> Based on gross business income only (no expenses deducted), assumes this is your only income, and doesn't account for Scottish rates, marriage allowance, or pension contributions. Rates below are editable — check current thresholds at gov.uk before relying on this for real tax provisioning.
+        <strong style="color:var(--orange);display:inline-flex;align-items:center;gap:4px">${icon('triangle-alert',12)} Rough estimate, not tax advice.</strong> Based on gross business income only (no expenses deducted), assumes this is your only income, and doesn't account for Scottish rates, marriage allowance, or pension contributions. Rates below are editable — check current thresholds at gov.uk before relying on this for real tax provisioning.
       </div>
 
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -6502,10 +6571,10 @@ const _SPOTLIGHTS = {
     title: 'Smart budgeting — built on your real habits',
     sub: 'Not just spending limits. Waypoint analyses what you actually spend and tells you where your money could work harder.',
     points: [
-      { icon: '🔍', bg: 'rgba(202,245,58,0.1)', title: 'Pattern detection', desc: 'Analyses 3+ months of transactions to suggest budget categories based on what you actually spend — not generic defaults.' },
-      { icon: '🎯', bg: 'rgba(45,212,191,0.1)', title: 'Needs vs. wants', desc: 'Automatically separates essential spending (rent, groceries) from discretionary so recommendations are actually useful, not noise.' },
-      { icon: '🚫', bg: 'rgba(244,114,182,0.1)', title: 'No budget for debt repayments', desc: 'Credit card payments and loan repayments are excluded from budget suggestions — budgeting them would double-count your real outgoings.' },
-      { icon: '📊', bg: 'rgba(96,165,250,0.1)', title: 'Live monthly progress', desc: 'See exactly how much of each budget you\'ve used in real time, with colour-coded alerts when you\'re getting close.' },
+      { icon: icon('search'), bg: 'rgba(202,245,58,0.1)', title: 'Pattern detection', desc: 'Analyses 3+ months of transactions to suggest budget categories based on what you actually spend — not generic defaults.' },
+      { icon: icon('target'), bg: 'rgba(45,212,191,0.1)', title: 'Needs vs. wants', desc: 'Automatically separates essential spending (rent, groceries) from discretionary so recommendations are actually useful, not noise.' },
+      { icon: icon('ban'), bg: 'rgba(244,114,182,0.1)', title: 'No budget for debt repayments', desc: 'Credit card payments and loan repayments are excluded from budget suggestions — budgeting them would double-count your real outgoings.' },
+      { icon: icon('bar-chart-3'), bg: 'rgba(96,165,250,0.1)', title: 'Live monthly progress', desc: 'See exactly how much of each budget you\'ve used in real time, with colour-coded alerts when you\'re getting close.' },
     ]
   },
   timeline: {
@@ -6513,10 +6582,10 @@ const _SPOTLIGHTS = {
     title: 'Your personalised road to financial freedom',
     sub: 'Not generic advice — a strategy and timeline built entirely on your actual numbers.',
     points: [
-      { icon: '🧭', bg: 'rgba(251,146,60,0.1)', title: 'Strategy picked for you', desc: 'Based on your income, debts, and savings, Waypoint selects the right approach: crisis mode, debt snowball, avalanche, or the FIRE path.' },
-      { icon: '📅', bg: 'rgba(202,245,58,0.1)', title: 'Real milestone dates', desc: 'Debt-free date, emergency fund complete, financial independence — projected from your actual monthly surplus, not rough estimates.' },
-      { icon: '🔥', bg: 'rgba(244,114,182,0.12)', title: 'Financial independence number', desc: 'The 4% rule: financial independence is when your portfolio covers 25× your annual expenses. We calculate your number and your timeline to reach it.' },
-      { icon: '⚡', bg: 'rgba(96,165,250,0.1)', title: 'Always up to date', desc: 'As your income grows, debts shrink, and savings build — your timeline adjusts automatically. No recalculation needed.' },
+      { icon: icon('compass'), bg: 'rgba(251,146,60,0.1)', title: 'Strategy picked for you', desc: 'Based on your income, debts, and savings, Waypoint selects the right approach: crisis mode, debt snowball, avalanche, or the FIRE path.' },
+      { icon: icon('calendar'), bg: 'rgba(202,245,58,0.1)', title: 'Real milestone dates', desc: 'Debt-free date, emergency fund complete, financial independence — projected from your actual monthly surplus, not rough estimates.' },
+      { icon: icon('flame'), bg: 'rgba(244,114,182,0.12)', title: 'Financial independence number', desc: 'The 4% rule: financial independence is when your portfolio covers 25× your annual expenses. We calculate your number and your timeline to reach it.' },
+      { icon: icon('zap'), bg: 'rgba(96,165,250,0.1)', title: 'Always up to date', desc: 'As your income grows, debts shrink, and savings build — your timeline adjusts automatically. No recalculation needed.' },
     ]
   },
   debt: {
@@ -6525,8 +6594,8 @@ const _SPOTLIGHTS = {
     sub: 'More than a list. A system for understanding exactly what you owe and how to pay it off faster.',
     points: [
       { icon: '⏰', bg: 'rgba(244,114,182,0.12)', title: '0% deal alerts', desc: 'Track interest-free periods and get warned 60 days before they expire — so you\'re never caught off guard by a rate jumping to 30%.' },
-      { icon: '🧊', bg: 'rgba(45,212,191,0.1)', title: 'Snowball vs. avalanche', desc: 'The Growth tab picks the best debt payoff strategy for your situation, explains why, and shows your exact debt-free date.' },
-      { icon: '🔢', bg: 'rgba(96,165,250,0.1)', title: 'Real interest calculations', desc: 'Enter your APR and minimum payment — Waypoint calculates true monthly interest charges and the real cost of carrying each debt.' },
+      { icon: icon('snowflake'), bg: 'rgba(45,212,191,0.1)', title: 'Snowball vs. avalanche', desc: 'The Growth tab picks the best debt payoff strategy for your situation, explains why, and shows your exact debt-free date.' },
+      { icon: icon('calculator'), bg: 'rgba(96,165,250,0.1)', title: 'Real interest calculations', desc: 'Enter your APR and minimum payment — Waypoint calculates true monthly interest charges and the real cost of carrying each debt.' },
     ]
   }
 };
@@ -6540,10 +6609,10 @@ const WHATS_NEW = {
     title: 'Business accounts, debt 0% tracking, and more',
     sub: `A round-up of what's shipped recently:`,
     points: [
-      { icon: '🧾', bg: 'rgba(202,245,58,0.1)', title: 'Business accounts + tax estimate', desc: 'A dedicated account type with a rough UK self-assessment estimate (Income Tax + Class 4 NI) right on the account\'s own page, plus an optional linked tax set-aside pot.' },
+      { icon: icon('receipt'), bg: 'rgba(202,245,58,0.1)', title: 'Business accounts + tax estimate', desc: 'A dedicated account type with a rough UK self-assessment estimate (Income Tax + Class 4 NI) right on the account\'s own page, plus an optional linked tax set-aside pot.' },
       { icon: '⏰', bg: 'rgba(244,114,182,0.12)', title: 'Multiple 0% debt promotions', desc: 'Track several concurrent interest-free deals per debt, with expiry warnings, a dedicated Debt Detail page, and an extra-payment payoff simulator.' },
-      { icon: '📂', bg: 'rgba(96,165,250,0.1)', title: 'Bulk statement import', desc: 'Once you\'ve got 4+ months of history, import every statement at once — Waypoint auto-handles what it recognises and only asks about the rest.' },
-      { icon: '🎯', bg: 'rgba(45,212,191,0.1)', title: 'Smarter suggestions', desc: 'Budget and Growth tab suggestions now come with one-click "Create budget" actions, and focus on discretionary spending rather than housing/utilities.' },
+      { icon: icon('folder-open'), bg: 'rgba(96,165,250,0.1)', title: 'Bulk statement import', desc: 'Once you\'ve got 4+ months of history, import every statement at once — Waypoint auto-handles what it recognises and only asks about the rest.' },
+      { icon: icon('target'), bg: 'rgba(45,212,191,0.1)', title: 'Smarter suggestions', desc: 'Budget and Growth tab suggestions now come with one-click "Create budget" actions, and focus on discretionary spending rather than housing/utilities.' },
     ]
   },
   '1.2.2': {
@@ -6551,8 +6620,8 @@ const WHATS_NEW = {
     title: 'Net worth history and editable category rules',
     sub: `A round-up of what's shipped recently:`,
     points: [
-      { icon: '📈', bg: 'rgba(202,245,58,0.1)', title: 'Net Worth Over Time', desc: 'A new Dashboard chart tracking your combined net worth across the last 6 months, reconstructed from your real account and debt activity.' },
-      { icon: '🏷️', bg: 'rgba(96,165,250,0.1)', title: 'Category Rules', desc: 'Vendor-to-category mappings you control directly from the Expenses tab — always wins over learned history or keyword guesses when importing statements.' },
+      { icon: icon('trending-up'), bg: 'rgba(202,245,58,0.1)', title: 'Net Worth Over Time', desc: 'A new Dashboard chart tracking your combined net worth across the last 6 months, reconstructed from your real account and debt activity.' },
+      { icon: icon('tag'), bg: 'rgba(96,165,250,0.1)', title: 'Category Rules', desc: 'Vendor-to-category mappings you control directly from the Expenses tab — always wins over learned history or keyword guesses when importing statements.' },
     ]
   }
 };
@@ -7028,15 +7097,15 @@ function _renderObStep() {
       </div>
       <div style="display:flex;flex-direction:column;gap:12px">
         <div class="ob-feature">
-          <div class="ob-feature-icon" style="background:rgba(202,245,58,0.1)">📊</div>
+          <div class="ob-feature-icon" style="background:rgba(202,245,58,0.1)">${icon('bar-chart-3',20)}</div>
           <div><div class="ob-feature-title">Real-time financial picture</div><div class="ob-feature-desc">All accounts, debts, and savings in one place</div></div>
         </div>
         <div class="ob-feature">
-          <div class="ob-feature-icon" style="background:rgba(45,212,191,0.1)">🔁</div>
+          <div class="ob-feature-icon" style="background:rgba(45,212,191,0.1)">${icon('repeat',20)}</div>
           <div><div class="ob-feature-title">Smart bill tracking</div><div class="ob-feature-desc">Detects recurring costs automatically from your statements</div></div>
         </div>
         <div class="ob-feature">
-          <div class="ob-feature-icon" style="background:rgba(96,165,250,0.1)">📈</div>
+          <div class="ob-feature-icon" style="background:rgba(96,165,250,0.1)">${icon('trending-up',20)}</div>
           <div><div class="ob-feature-title">Growth timeline</div><div class="ob-feature-desc">Personalised milestones based on your real numbers</div></div>
         </div>
       </div>
@@ -7114,19 +7183,19 @@ function _renderObStep() {
       </div>
       <div class="ob-type-grid">
         <button class="ob-type-btn" onclick="_obSelectType('salaried')">
-          <span class="ob-type-icon">💼</span>Salaried
+          <span class="ob-type-icon">${icon('briefcase',22)}</span>Salaried
           <div style="font-size:10px;font-weight:400;color:var(--muted);margin-top:3px">Regular monthly salary</div>
         </button>
         <button class="ob-type-btn" onclick="_obSelectType('freelance')">
-          <span class="ob-type-icon">🧑‍💻</span>Freelance
+          <span class="ob-type-icon">${icon('laptop',22)}</span>Freelance
           <div style="font-size:10px;font-weight:400;color:var(--muted);margin-top:3px">Self-employed / contracts</div>
         </button>
         <button class="ob-type-btn" onclick="_obSelectType('variable')">
-          <span class="ob-type-icon">📈</span>Variable
+          <span class="ob-type-icon">${icon('trending-up',22)}</span>Variable
           <div style="font-size:10px;font-weight:400;color:var(--muted);margin-top:3px">Mix of regular & variable</div>
         </button>
         <button class="ob-type-btn" onclick="_obSelectType('other')">
-          <span class="ob-type-icon">💷</span>Other
+          <span class="ob-type-icon">${icon('wallet',22)}</span>Other
           <div style="font-size:10px;font-weight:400;color:var(--muted);margin-top:3px">Pension, rental, benefits</div>
         </button>
       </div>
@@ -7168,19 +7237,19 @@ function _renderObStep() {
       </div>
       <div style="display:flex;flex-direction:column;gap:14px;text-align:left">
         <div class="ob-feature">
-          <div class="ob-feature-icon" style="background:rgba(202,245,58,0.1)">📥</div>
+          <div class="ob-feature-icon" style="background:rgba(202,245,58,0.1)">${icon('download',20)}</div>
           <div><div class="ob-feature-title">Import a bank statement</div><div class="ob-feature-desc">Upload a PDF or CSV — Waypoint pulls in your transactions and detects recurring bills automatically</div></div>
         </div>
         <div class="ob-feature">
-          <div class="ob-feature-icon" style="background:rgba(45,212,191,0.1)">🔁</div>
+          <div class="ob-feature-icon" style="background:rgba(45,212,191,0.1)">${icon('repeat',20)}</div>
           <div><div class="ob-feature-title">Add recurring bills</div><div class="ob-feature-desc">Rent, subscriptions, utilities — track every monthly outgoing</div></div>
         </div>
         <div class="ob-feature">
-          <div class="ob-feature-icon" style="background:rgba(96,165,250,0.1)">🎯</div>
+          <div class="ob-feature-icon" style="background:rgba(96,165,250,0.1)">${icon('target',20)}</div>
           <div><div class="ob-feature-title">Set savings goals</div><div class="ob-feature-desc">Emergency fund, house deposit, holidays — set targets and watch them grow</div></div>
         </div>
         <div class="ob-feature">
-          <div class="ob-feature-icon" style="background:rgba(251,146,60,0.1)">📈</div>
+          <div class="ob-feature-icon" style="background:rgba(251,146,60,0.1)">${icon('trending-up',20)}</div>
           <div><div class="ob-feature-title">Check your Growth timeline</div><div class="ob-feature-desc">Personalised milestones to financial freedom based on your real numbers</div></div>
         </div>
       </div>

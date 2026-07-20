@@ -27,6 +27,7 @@ All user data lives in `localStorage` — the Electron shell is a thin, security
 - Font: Unbounded (Google Fonts, loaded in `<head>`)
 - Accent palette: `--lime` (#CAF53A), `--pink` (#F472B6), `--teal` (#2DD4BF), `--blue` (#60A5FA), `--orange` (#FB923C)
 - CSS variables defined on `:root`, including `color-scheme: dark` — needed so native controls (select dropdowns, date pickers) render dark; page CSS alone can't restyle an open `<select>` popup
+- **Icons**: Lucide (outline style, stroke-based), not emoji. `ICON_PATHS` (a name→SVG-path-data map) and `icon(name, size=16)` (index.html, right after `esc()`) are the only way icons should be added — `icon()` returns a `<svg stroke="currentColor">` string with no fill, so it inherits the containing element's CSS `color` and needs no per-usage color wiring. Used via `${icon('name')}` inside template literals (the vast majority of the app), or as raw inline SVG in the handful of places that predate the `<script>` tag (the PDF-import modal markup, before line ~1595) where `icon()` isn't in scope. Deliberately kept out of scope: the bug-report widget's icon and the thank-you-screen icon (custom user-provided SVGs, not Lucide) and inline text decorations like `✓`/`→`/`↔` used as prose punctuation rather than standalone icons — those stay as plain characters
 
 ## Key features implemented
 
