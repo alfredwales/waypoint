@@ -75,11 +75,15 @@
 
     nav {
       display: flex;
-      gap: 4px;
+      gap: 2px;
       flex: 1;
       overflow-x: auto;
       scrollbar-width: none;
       transition: mask-image 0.15s, -webkit-mask-image 0.15s;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: 100px;
+      padding: 3px;
     }
     nav::-webkit-scrollbar { display: none; }
     nav.nav-fade-right { -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%); }
@@ -87,6 +91,9 @@
     nav.nav-fade-left.nav-fade-right { -webkit-mask-image: linear-gradient(to right, transparent 0%, black 28px, black calc(100% - 28px), transparent 100%); mask-image: linear-gradient(to right, transparent 0%, black 28px, black calc(100% - 28px), transparent 100%); }
 
     nav button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       background: none;
       border: 2px solid transparent;
       padding: 6px 14px;
@@ -100,7 +107,9 @@
       white-space: nowrap;
       font-family: inherit;
     }
+    nav button svg { flex-shrink: 0; opacity: 0.75; }
     nav button:hover { border-color: var(--border); color: var(--text); }
+    nav button.active svg { opacity: 1; }
     nav button.active {
       background: var(--lime);
       color: #0D0D12;
@@ -288,8 +297,8 @@
 
     /* ── Wealth hero ── */
     .wealth-hero {
-      background: var(--surface);
-      border: 2px solid var(--border);
+      background: var(--lime);
+      border: none;
       border-radius: var(--r);
       padding: 24px;
       display: flex;
@@ -302,32 +311,36 @@
       font-size: 9px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: var(--muted);
+      color: rgba(20,23,10,0.6);
       margin-bottom: 8px;
     }
+    .wealth-top-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .wealth-trend {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12px; font-weight: 700; color: #14170A;
+      background: rgba(20,23,10,0.12); padding: 4px 10px; border-radius: 100px;
+    }
+    .wealth-spark { margin-top: 14px; height: 64px; }
     .wealth-number {
       font-family: 'Unbounded', sans-serif;
       font-size: 40px;
       letter-spacing: -2px;
       line-height: 1;
+      color: #14170A;
     }
-    .wealth-number.pos { color: var(--lime); }
-    .wealth-number.neg { color: var(--pink); }
 
     .wealth-breakdown {
       display: flex;
       gap: 20px;
       padding-top: 16px;
-      border-top: 2px solid var(--border);
+      border-top: 1px solid rgba(20,23,10,0.15);
       margin-top: 16px;
       flex-wrap: wrap;
     }
     .wb-item { }
-    .wb-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 2px; }
-    .wb-val { font-family: 'Unbounded', sans-serif; font-size: 15px; }
-    .wb-val.pos { color: var(--lime); }
-    .wb-val.neg { color: var(--pink); }
-    .wb-val.neu { color: var(--text); }
+    .wb-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(20,23,10,0.55); margin-bottom: 2px; }
+    .wb-val { font-family: 'Unbounded', sans-serif; font-size: 15px; color: #14170A; }
+    .wb-val.neg { color: #7A2A46; }
 
     /* ── Account card stack (dock) ── */
     .stack-wrap {
@@ -448,6 +461,7 @@
       border-radius: var(--r);
       padding: 16px 18px;
     }
+    .stat-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--surface2); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
     .stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 6px; }
     .stat-val { font-family: 'Unbounded', sans-serif; font-size: 20px; letter-spacing: -0.5px; line-height: 1.1; }
     .stat-val.pos  { color: var(--lime); }
@@ -510,6 +524,7 @@
     .entry-amount.income  { color: var(--lime); }
     .entry-amount.expense { color: var(--pink); }
     .entry-amount.neu     { color: var(--muted); }
+    .entry-avatar { width: 28px; height: 28px; border-radius: 8px; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-family: 'Unbounded', sans-serif; font-size: 9px; color: var(--text); flex-shrink: 0; }
     .entry-actions { display: flex; gap: 4px; flex-shrink: 0; }
     .entry-check { flex-shrink:0; width:15px; height:15px; accent-color:var(--lime); cursor:pointer; }
     .entry-acct-tag { font-size:10px; font-weight:700; color:var(--teal); background:rgba(45,212,191,0.1); border:1px solid rgba(45,212,191,0.3); border-radius:4px; padding:2px 6px; white-space:nowrap; flex-shrink:0; }
@@ -651,13 +666,13 @@
     input::placeholder { color: var(--subtle); }
 
     /* ── Insight types ── */
-    .insight-card.warn { border-color: var(--orange); }
+    .insight-card.warn { border-color: var(--orange); background: rgba(251,146,60,0.08); }
     .insight-card.warn .eyebrow { color: var(--orange); }
-    .insight-card.danger { border-color: var(--pink); }
+    .insight-card.danger { border-color: var(--pink); background: rgba(244,114,182,0.08); }
     .insight-card.danger .eyebrow { color: var(--pink); }
-    .insight-card.info { border-color: var(--blue); }
+    .insight-card.info { border-color: var(--blue); background: rgba(96,165,250,0.08); }
     .insight-card.info .eyebrow { color: var(--blue); }
-    .insight-card.pos { border-color: var(--lime); }
+    .insight-card.pos { border-color: var(--lime); background: rgba(202,245,58,0.08); }
 
     /* ── Profile badge ── */
     .profile-badge {
@@ -1065,13 +1080,13 @@
 <header>
   <div class="logo">WAY<br>POINT</div>
   <nav id="top-nav">
-    <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard',this)">Dashboard</button>
-    <button class="nav-btn" data-tab="income" onclick="switchTab('income',this)">Income</button>
-    <button class="nav-btn" data-tab="expenses" onclick="switchTab('expenses',this)">Expenses</button>
-    <button class="nav-btn" data-tab="budget" onclick="switchTab('budget',this)">Budget</button>
-    <button class="nav-btn" data-tab="debt" onclick="switchTab('debt',this)">Debt</button>
-    <button class="nav-btn" data-tab="savings" onclick="switchTab('savings',this)">Savings</button>
-    <button class="nav-btn" data-tab="timeline" onclick="switchTab('timeline',this)">Growth</button>
+    <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard',this)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Dashboard</button>
+    <button class="nav-btn" data-tab="income" onclick="switchTab('income',this)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>Income</button>
+    <button class="nav-btn" data-tab="expenses" onclick="switchTab('expenses',this)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17V7"/><path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8"/></svg>Expenses</button>
+    <button class="nav-btn" data-tab="budget" onclick="switchTab('budget',this)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Budget</button>
+    <button class="nav-btn" data-tab="debt" onclick="switchTab('debt',this)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Debt</button>
+    <button class="nav-btn" data-tab="savings" onclick="switchTab('savings',this)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18v-7"/><path d="M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="M3 22h18"/><path d="M6 18v-7"/></svg>Savings</button>
+    <button class="nav-btn" data-tab="timeline" onclick="switchTab('timeline',this)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>Growth</button>
   </nav>
   <div class="header-right">
     <div class="profile-badge" onclick="openProfileModal()" id="profile-badge">
@@ -1907,21 +1922,47 @@ function lineChartSVG(points, w=340, h=110, color='#CAF53A') {
   }
   const baseY=toY(minV);
   const fill=path+` L ${coords[n-1][0].toFixed(1)} ${baseY.toFixed(1)} L ${coords[0][0].toFixed(1)} ${baseY.toFixed(1)} Z`;
-  const gId=`lc${Math.random().toString(36).slice(2,6)}`;
-  const rv=parseInt(color.slice(1,3),16),gv=parseInt(color.slice(3,5),16),bv=parseInt(color.slice(5,7),16);
   const yTicks=[maxV,Math.round(minV+(maxV-minV)/2),minV].map(v=>`<text x="${pL-4}" y="${(toY(v)+3.5).toFixed(1)}" text-anchor="end" fill="#3A3A52" font-size="9" font-family="sans-serif">${fmtCompact(v)}</text>`).join('');
   const xLabels=points.map((p,i)=>`<text x="${toX(i).toFixed(1)}" y="${h-4}" text-anchor="middle" fill="#3A3A52" font-size="9" font-family="sans-serif">${p.label}</text>`).join('');
   const dots=coords.map(([x,y])=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${color}"/>`).join('');
   return `<svg width="100%" viewBox="0 0 ${w} ${h}" style="animation:chartIn 0.4s ease both">
-    <defs><linearGradient id="${gId}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="rgb(${rv},${gv},${bv})" stop-opacity="0.22"/>
-      <stop offset="100%" stop-color="rgb(${rv},${gv},${bv})" stop-opacity="0.02"/>
-    </linearGradient></defs>
     ${yTicks}${xLabels}
-    <path d="${fill}" fill="url(#${gId})"/>
+    <path d="${fill}" fill="${color}" fill-opacity="0.14"/>
     <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     ${dots}
   </svg>`;
+}
+
+function sparklineSVG(points, w=300, h=48, color='#14170A', fill=false) {
+  const n=points.length;
+  if(n<2) return '';
+  const values=points.map(p=>p.value);
+  const minV=Math.min(...values),maxV=Math.max(...values),range=(maxV-minV)||1;
+  const toX=i=>(i/(n-1))*w;
+  const toY=v=>h-((v-minV)/range)*h;
+  const coords=points.map((p,i)=>[toX(i),toY(p.value)]);
+  let path=`M ${coords[0][0].toFixed(1)} ${coords[0][1].toFixed(1)}`;
+  for(let i=1;i<n;i++){
+    const [x0,y0]=coords[i-1],[x1,y1]=coords[i],cp=(w/(n-1))*0.45;
+    path+=` C ${(x0+cp).toFixed(1)} ${y0.toFixed(1)}, ${(x1-cp).toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  }
+  const [lx,ly]=coords[n-1];
+  let fillPart='';
+  if(fill){
+    const areaPath=path+` L ${coords[n-1][0].toFixed(1)} ${h} L ${coords[0][0].toFixed(1)} ${h} Z`;
+    fillPart=`<path d="${areaPath}" fill="${color}" fill-opacity="0.14"/>`;
+  }
+  // The chart stretches non-uniformly (full width, fixed height), so an SVG <circle> marker
+  // would get squashed into an ellipse by that stretch. Draw it as a fixed-size HTML dot
+  // positioned over the chart instead, which isn't subject to the SVG's own scaling.
+  const dotLeftPct=(lx/w*100).toFixed(2), dotTopPct=(ly/h*100).toFixed(2);
+  return `<div style="position:relative;width:100%;height:100%">
+    <svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block;overflow:visible">
+      ${fillPart}
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+    </svg>
+    <div style="position:absolute;left:${dotLeftPct}%;top:${dotTopPct}%;width:8px;height:8px;border-radius:50%;background:${color};transform:translate(-50%,-50%)"></div>
+  </div>`;
 }
 
 // ════════════════════════════════
@@ -5020,12 +5061,11 @@ function _monotonePathD(pts) {
   return d;
 }
 
-function spendingForecastSVG(billsData, totalData, w=340, h=185) {
+function spendingForecastSVG(billsData, totalData, w=560, h=160) {
   const n = billsData.length;
   if (n < 2) return '';
   const maxV = Math.max(...totalData, ...billsData, 1) * 1.1;
-  const labelH = 22; // space reserved for x-axis date labels
-  const pad = 8, innerW = w - pad*2, innerH = h - pad*2 - labelH;
+  const pad = 8, innerW = w - pad*2, innerH = h - pad*2;
   const botY = pad + innerH;
   const toX = i => pad + (i/(n-1))*innerW;
   const toY = v => pad + innerH - (v/maxV)*innerH;
@@ -5042,39 +5082,27 @@ function spendingForecastSVG(billsData, totalData, w=340, h=185) {
     return _monotonePathD(pts);
   }
 
-  // Date markers: Today, and evenly spaced ticks
-  const today = new Date(); today.setHours(0,0,0,0);
-  const days = n - 1;
-  const tickCount = days <= 30 ? 4 : days <= 60 ? 4 : 5;
-  const tickIndices = Array.from({length: tickCount}, (_,k) => Math.round(k * days / (tickCount-1)));
-  const ticks = tickIndices.map((idx, k) => {
-    const d = new Date(today); d.setDate(d.getDate() + idx);
-    const label = idx === 0 ? 'Today' : d.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
-    const anchor = k === 0 ? 'start' : k === tickCount-1 ? 'end' : 'middle';
-    return { x: toX(idx), label, anchor };
-  });
-
   const gId = `sf${Math.random().toString(36).slice(2,6)}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const endDate = new Date(today); endDate.setDate(endDate.getDate() + (n-1));
+  const endLabel = endDate.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+
   return `
-    <svg width="100%" viewBox="0 0 ${w} ${h}" style="display:block;animation:chartIn 0.5s ease both;margin:0 -2px">
+    <svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block;animation:chartIn 0.5s ease both;margin:0 -2px">
       <defs>
         <clipPath id="${gId}c"><rect x="${pad}" y="${pad}" width="${innerW}" height="${innerH}"/></clipPath>
       </defs>
       <!-- Total spending area -->
-      <path d="${areaPath(totalData)}" fill="rgba(129,140,248,0.13)" clip-path="url(#${gId}c)"/>
+      <path d="${areaPath(totalData)}" fill="#818CF8" fill-opacity="0.13" clip-path="url(#${gId}c)"/>
       <path d="${linePath(totalData)}" fill="none" stroke="#818CF8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${gId}c)"/>
       <!-- Bills area -->
-      <path d="${areaPath(billsData)}" fill="rgba(251,146,60,0.18)" clip-path="url(#${gId}c)"/>
+      <path d="${areaPath(billsData)}" fill="#FB923C" fill-opacity="0.18" clip-path="url(#${gId}c)"/>
       <path d="${linePath(billsData)}" fill="none" stroke="#FB923C" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" clip-path="url(#${gId}c)"/>
-      <!-- Baseline -->
-      <line x1="${pad}" y1="${botY}" x2="${pad+innerW}" y2="${botY}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-      <!-- Date ticks and labels -->
-      ${ticks.map(t => `
-        <line x1="${t.x.toFixed(1)}" y1="${botY}" x2="${t.x.toFixed(1)}" y2="${(botY+5).toFixed(1)}" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-        <text x="${t.x.toFixed(1)}" y="${(botY+16).toFixed(1)}" font-size="9" fill="rgba(255,255,255,0.35)" text-anchor="${t.anchor}" font-family="sans-serif" letter-spacing="0.2">${t.label}</text>
-      `).join('')}
     </svg>
-    <div style="display:flex;gap:20px;justify-content:center;margin-top:8px">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:6px">
+      <span>Today</span><span>${esc(endLabel)}</span>
+    </div>
+    <div style="display:flex;gap:20px;justify-content:center;margin-top:10px">
       <div style="display:flex;align-items:center;gap:7px">
         <div style="width:10px;height:2px;border-radius:1px;background:#818CF8"></div>
         <span style="font-size:11px;color:var(--muted)">Typical spending</span>
@@ -5114,7 +5142,7 @@ function renderDashboard() {
   const donut=donutChartSVG(catData,160,18);
   const bars=barChartSVG(getLast6Months().map((mo,i)=>({...mo,onclick:`openChartDrilldown('bar',${i},${mo.month},${mo.year},null)`})));
   const nwHistory=getNetWorthHistory();
-  const nwLine=lineChartSVG(nwHistory,340,110,'#CAF53A');
+  const nwLine=sparklineSVG(nwHistory,560,130,'#CAF53A',true);
   const cfForecast=calcSpendingForecast(_cfDays);
 
   const budgetHtml=state.budgets.length===0?'':`
@@ -5139,11 +5167,15 @@ function renderDashboard() {
       <div class="wealth-hero">
         <div>
           <div class="wealth-eyebrow">Net Worth</div>
-          <div class="wealth-number ${wealth>=0?'pos':'neg'}">${wealth<0?'−':''}${fmt(Math.abs(wealth))}</div>
+          <div class="wealth-top-row">
+            <div class="wealth-number">${wealth<0?'−':''}${fmt(Math.abs(wealth))}</div>
+            ${surplus!==0?`<div class="wealth-trend">${surplus>=0?icon('trending-up',12):icon('trending-down',12)} ${surplus>=0?fmt(surplus)+' this month':fmt(Math.abs(surplus))+' shortfall'}</div>`:''}
+          </div>
+          ${nwHistory.length>=2?`<div class="wealth-spark">${sparklineSVG(nwHistory,300,64,'#14170A')}</div>`:''}
         </div>
         <div class="wealth-breakdown">
-          ${state.accounts.length?`<div class="wb-item"><div class="wb-label">Accounts</div><div class="wb-val neu">${fmt(acctTotal)}</div></div>`:''}
-          ${state.savings.length?`<div class="wb-item"><div class="wb-label">Savings</div><div class="wb-val pos">${fmt(savTotal)}</div></div>`:''}
+          ${state.accounts.length?`<div class="wb-item"><div class="wb-label">Accounts</div><div class="wb-val">${fmt(acctTotal)}</div></div>`:''}
+          ${state.savings.length?`<div class="wb-item"><div class="wb-label">Savings</div><div class="wb-val">${fmt(savTotal)}</div></div>`:''}
           ${state.debts.length?`<div class="wb-item"><div class="wb-label">Debt</div><div class="wb-val neg">−${fmt(debtTotal)}</div></div>`:''}
         </div>
       </div>`:`
@@ -5158,21 +5190,25 @@ function renderDashboard() {
 
     <div class="stat-grid">
       <div class="stat-card">
+        <div class="stat-icon" style="color:var(--lime)">${icon('trending-up',14)}</div>
         <div class="stat-label">This Month — In</div>
         <div class="stat-val pos">${fmt(monthIn)}</div>
         <div class="stat-sub">${monthName(m,y)}</div>
       </div>
       <div class="stat-card">
+        <div class="stat-icon" style="color:var(--pink)">${icon('receipt',14)}</div>
         <div class="stat-label">Variable Expenses</div>
         <div class="stat-val neg">${fmt(monthOut)}</div>
         <div class="stat-sub">+ ${fmt(recurring)} recurring</div>
       </div>
       <div class="stat-card">
+        <div class="stat-icon" style="color:var(--teal)">${icon('wallet',14)}</div>
         <div class="stat-label">Monthly Surplus</div>
         <div class="stat-val ${surplus>=0?'pos':'neg'}">${fmt(Math.abs(surplus))}</div>
         <div class="stat-sub">${surplus>=0?'ahead':'shortfall'} this month</div>
       </div>
       <div class="stat-card">
+        <div class="stat-icon" style="color:var(--blue)">${icon('compass',14)}</div>
         <div class="stat-label">Runway</div>
         <div class="stat-val ${runwayCls}">${runwayText}</div>
         <div class="stat-sub">${avgBurn>0?'at '+fmt(avgBurn)+'/mo burn':'log data to calculate'}</div>
@@ -5211,6 +5247,7 @@ function renderDashboard() {
     <div class="card">
       <div class="card-title">Net Worth Over Time</div>
       ${nwLine}
+      ${nwHistory.length>=2?`<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:6px"><span>${esc(nwHistory[0].label)}</span><span>${esc(nwHistory[nwHistory.length-1].label)}</span></div>`:''}
       ${state.savings.length>0?`<p style="font-size:10px;color:var(--muted);margin-top:8px">Savings pot balances shown at today's value throughout — past pot activity isn't tracked.</p>`:''}
     </div>
 
@@ -5254,16 +5291,17 @@ function renderDashboard() {
       </div>
       ${recent.length===0?`<div class="empty"><div class="empty-icon">${icon('bar-chart-3',28)}</div><p>Nothing logged yet.</p></div>`:`
       <div class="entry-list">
-        ${recent.map(t=>`<div class="entry-item">
+        ${recent.map(t=>{const title=t._t==='income'?t.source:(t.note||t.category);return `<div class="entry-item">
+          <div class="entry-avatar">${esc(title.trim().slice(0,2).toUpperCase())}</div>
           <div class="entry-date">${fmtDate(t.date)}</div>
           <div class="entry-main">
-            <div class="entry-title">${esc(t._t==='income'?t.source:(t.note||t.category))}</div>
+            <div class="entry-title">${esc(title)}</div>
             ${t._t==='expense'&&t.note?`<div class="entry-note">${esc(t.category)}</div>`:''}
             ${t._t==='income'&&t.note?`<div class="entry-note">${esc(t.note)}</div>`:''}
           </div>
           ${t._t==='expense'&&_catColorMap[t.category]?`<span class="tag" style="${_catTagStyle(_catColorMap[t.category])}">${esc(t.category)}</span>`:''}
           <div class="entry-amount ${t._t}">${t._t==='income'?'+':'−'}${fmt(t.amount)}</div>
-        </div>`).join('')}
+        </div>`;}).join('')}
       </div>`}
     </div>`;
 }
