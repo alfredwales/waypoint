@@ -226,6 +226,37 @@
     .update-progress-toast .upt-track { width: 100%; height: 6px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
     .update-progress-toast .upt-fill { height: 100%; width: 0%; background: var(--lime); border-radius: 4px; transition: width 0.25s ease; }
 
+    /* ── Generic confirmation toast (account/pocket creation, statement import) ── */
+    @keyframes toastFadeOut { to { opacity: 0; transform: translateX(-50%) translateY(6px); } }
+    .app-toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface2);
+      border: 2px solid var(--lime);
+      color: var(--text);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      z-index: 300;
+      max-width: min(86vw, 420px);
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      animation: toastPopIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .app-toast.toast-out { animation: toastFadeOut 0.25s ease both; }
+    @media (max-width: 640px) { .app-toast { bottom: 150px; } }
+
+    /* ── One-shot highlight for a just-created account/pocket ── */
+    @keyframes itemCreatedPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(202,245,58,0.55); }
+      70%  { box-shadow: 0 0 0 9px rgba(202,245,58,0); }
+      100% { box-shadow: 0 0 0 0 rgba(202,245,58,0); }
+    }
+    .item-created-flash { animation: itemCreatedPulse 1s ease-out 2; }
+
     /* ── Bug report widget ── */
     .bug-report-btn {
       position: fixed;
@@ -2642,6 +2673,18 @@ let _selectedTxIds = new Set();
 let _incomeSearch = '';
 let _expenseSearch = '';
 let _selectedPocket = null; // null = All view; accountId = specific pocket
+let _lastCreatedAccountId = null; // set right after a new account/pocket is created, cleared at the end of the render it flashes in
+
+function showToast(message, type='pos') {
+  const el = document.createElement('div');
+  el.className = `app-toast ${type}`;
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('toast-out');
+    setTimeout(() => el.remove(), 250);
+  }, 2600);
+}
 
 function _populateAccountSelect(selectId) {
   const sel = document.getElementById(selectId); if(!sel) return;
@@ -3429,7 +3472,12 @@ function submitAccount(e){
   }
   data.balanceSetAt=balanceSetAt;
   if(editId){const idx=state.accounts.findIndex(a=>a.id===editId);if(idx>-1)state.accounts[idx]={id:editId,...data};}
-  else state.accounts.push({id:uid(),...data});
+  else {
+    const newId=uid();
+    state.accounts.push({id:newId,...data});
+    _lastCreatedAccountId=newId;
+    showToast(`'${data.name}' ${data.parentAccountId?'pocket':'account'} added`);
+  }
   saveState();closeModal('account-modal');render();
 }
 function _unassignAccount(id){
@@ -3439,6 +3487,13 @@ function _unassignAccount(id){
   state.savings.forEach(p=>{ if(p.linkedAccountId===id) p.linkedAccountId=null; });
 }
 function deleteAccount(id){if(!confirm('Delete this account?'))return;state.accounts=state.accounts.filter(a=>a.id!==id);_unassignAccount(id);saveState();render();}
+function deletePocket(id){
+  if(!confirm('Delete this pocket? Its transactions will remain but become unassigned.'))return;
+  state.accounts=state.accounts.filter(a=>a.id!==id);
+  _unassignAccount(id);
+  if(_selectedPocket===id)_selectedPocket=null;
+  saveState();render();
+}
 function deleteAccountFromModal(){
   const id=document.getElementById('account-edit-id').value;
   if(!id) return;
@@ -4093,7 +4148,7 @@ function importPDFConfirmed() {
   state.expenses.sort((a,b)=>b.date.localeCompare(a.date));
   saveState(); closeModal('pdf-modal');
   const parts=[inc?`${inc} income`:'',exp?`${exp} expense${exp!==1?'s':''}`:'',intCount?`${intCount} interest charge${intCount!==1?'s':''}`:'',pay?`${pay} payment${pay!==1?'s':''} (excluded from totals)`:'',tr?`${tr} transfer${tr!==1?'s':''} (excluded from totals)`:'',dupes?`${dupes} duplicate${dupes!==1?'s':''} skipped`:''].filter(Boolean);
-  alert(`Imported: ${parts.join(', ')}.`);
+  showToast(`Imported: ${parts.join(', ')}.`);
   detectBillSuggestions();
   render();
   if (!state.seenSpotlights) state.seenSpotlights = {};
@@ -4327,7 +4382,7 @@ function confirmBulkReview() {
   state.expenses.sort((a,b)=>b.date.localeCompare(a.date));
   saveState();
   closeModal('bulk-review-modal');
-  alert(`Imported ${_bulkSummary.confident + count} transactions in total (${_bulkSummary.confident} automatically, ${count} confirmed by you).`);
+  showToast(`Imported ${_bulkSummary.confident + count} transactions in total (${_bulkSummary.confident} automatically, ${count} confirmed by you).`);
   detectBillSuggestions();
   render();
   checkEFSuggestion();
@@ -4719,7 +4774,7 @@ function renderCardDock() {
     const detail=(['savings','isa','invest'].includes(a.type)&&a.interestRate)
       ? `<div style="font-size:9px;font-weight:700;color:rgba(0,0,0,0.4);letter-spacing:0.5px">${a.interestRate}% AER</div>`
       : (a.hasOverdraft&&Number(a.balance)<0?`<div style="font-size:9px;font-weight:700;color:rgba(0,0,0,0.4)">OD: −${fmt(Math.abs(a.balance))}</div>`:'');
-    return `<div class="acct-card" data-id="${a.id}" style="background:${color};top:0"
+    return `<div class="acct-card${a.id===_lastCreatedAccountId?' item-created-flash':''}" data-id="${a.id}" style="background:${color};top:0"
       onclick="if(!_dragMoved)goToAccountDetail('${a.id}')"
       onpointerdown="_pDragDown(event,'${a.id}',${i})">
       <div class="acct-card-top">
@@ -4863,6 +4918,7 @@ function render(){
     const el=main.querySelector('input[type="search"]');
     if(el){el.focus();const v=el.value.length;el.setSelectionRange(v,v);}
   }
+  _lastCreatedAccountId=null; // one-shot: every template that wanted to flash it already read it above
 }
 
 // ── ACCOUNT DETAIL ──────────────────────────
@@ -4921,15 +4977,20 @@ function renderAccountDetail(account) {
       <div class="detail-bar-title">${esc(account.name)}</div>
     </div>
 
-    ${hasPockets?`
-    <div class="pocket-tabs">
-      <button class="pocket-tab ${!activePocketId?'active':''}" onclick="_selectedPocket=null;_pocketSwitch=true;render()">All</button>
-      <button class="pocket-tab ${activePocketId===account.id?'active':''}" onclick="selectPocket('${account.id}')">Main</button>
-      ${pockets.map(p=>`<button class="pocket-tab ${activePocketId===p.id?'active':''}" onclick="selectPocket('${p.id}')">${esc(p.name)}</button>`).join('')}
+    ${!account.parentAccountId?`
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:${hasPockets?'12px':'16px'}">
+      ${hasPockets?`
+      <div class="pocket-tabs" style="margin-bottom:0">
+        <button class="pocket-tab ${!activePocketId?'active':''}" onclick="_selectedPocket=null;_pocketSwitch=true;render()">All</button>
+        <button class="pocket-tab ${activePocketId===account.id?'active':''}${account.id===_lastCreatedAccountId?' item-created-flash':''}" onclick="selectPocket('${account.id}')">Main</button>
+        ${pockets.map(p=>`<button class="pocket-tab ${activePocketId===p.id?'active':''}${p.id===_lastCreatedAccountId?' item-created-flash':''}" onclick="selectPocket('${p.id}')">${esc(p.name)}</button>`).join('')}
+      </div>`:'<div></div>'}
+      <button class="btn btn-outline btn-sm" onclick="openAddPocket('${account.id}')">+ Add Pocket</button>
     </div>
+    ${hasPockets?`
     <div style="font-size:10px;color:var(--muted);margin-bottom:12px;padding:7px 10px;background:rgba(96,165,250,0.06);border:1px solid rgba(96,165,250,0.2);border-radius:6px">
       &#x1F4A1; To upload a statement for a specific pocket, select its tab above first — the Upload button below will target that pocket.
-    </div>`:''}
+    </div>`:''}`:''}
 
     <div class="${_pocketSwitch?'pocket-body':''}">
 
@@ -5071,9 +5132,13 @@ function renderAccountDetail(account) {
       `}
       <div style="display:flex;gap:8px;padding-top:14px;border-top:1px solid var(--border);margin-top:4px;flex-wrap:wrap">
         <button class="btn btn-outline btn-sm" onclick="startPDFImport('${activePocketId||account.id}')">&#8593; ${activePocketId&&activePocketId!==account.id?'Upload to Pocket':'Upload to '+esc(account.name)}</button>
-        ${!account.parentAccountId?`<button class="btn btn-outline btn-sm" onclick="openAddPocket('${account.id}')">+ Add Pocket</button>`:''}
+        ${activePocketId&&activePocketId!==account.id?`
+        <button class="btn btn-outline btn-sm" onclick="openEditAccount('${activePocketId}')">Edit Pocket</button>
+        <button class="btn btn-pink btn-sm" onclick="deletePocket('${activePocketId}')">Delete Pocket</button>
+        `:`
         <button class="btn btn-outline btn-sm" onclick="openEditAccount('${account.id}')">Edit Account</button>
         <button class="btn btn-pink btn-sm" onclick="deleteAccount('${account.id}')">Delete</button>
+        `}
       </div>
     </div>
     </div>`;
@@ -5825,7 +5890,7 @@ function acctRow(a) {
   const proj=hasInterest?projectedBalance({balance:bal,interestRate:a.interestRate,monthlyContribution:a.monthlyContrib||0},12):null;
   const overdrawn=a.hasOverdraft&&bal<0;
   const odInterest=overdrawn?Math.abs(bal)*(a.overdraftAPR||0)/100/12:0;
-  return `<div class="ds-row" style="cursor:pointer" onclick="goToAccountDetail('${a.id}')">
+  return `<div class="ds-row${a.id===_lastCreatedAccountId?' item-created-flash':''}" style="cursor:pointer" onclick="goToAccountDetail('${a.id}')">
     <div class="ds-top">
       <div class="ds-name">${esc(a.name)}</div>${typeBadge(a.type)}
       ${hasInterest?`<span class="type-badge tb-savings">${a.interestRate}% AER</span>`:''}
